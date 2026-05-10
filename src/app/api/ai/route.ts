@@ -3,7 +3,7 @@ import { db } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  const apiKey = "AIzaSyDbek424VzJzJtKSoXvp3IJ4Jvp8R29y54HQ"; // Ключ активирован
+  const apiKey = "AIzaSyDbek424VzJtKSoXvp3IJ4Jvp8R29y54HQ"; // Ключ исправлен
   if (!apiKey) {
     return NextResponse.json({ error: "API Ключ не настроен. Пожалуйста, добавьте GOOGLE_AI_KEY в Vercel." }, { status: 500 });
   }
