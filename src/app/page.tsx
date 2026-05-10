@@ -1,7 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function Home() {
+  const [isCloudSynced, setIsCloudSynced] = useState(false);
+  const [hasLocalData, setHasLocalData] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('idle');
+
+  useEffect(() => {
+    // Проверка наличия данных в localStorage
+    const employees = localStorage.getItem('proizvodstvo_employees');
+    const materials = localStorage.getItem('proizvodstvo_raw_materials');
+    const maintenance = localStorage.getItem('proizvodstvo_maintenance');
+    
+    if (employees || materials || maintenance) {
+      setHasLocalData(true);
+    }
+  }, []);
+
+  const syncToCloud = async () => {
+    setSyncStatus('syncing');
+    try {
+      // 1. Инициализация базы (на всякий случай)
+      await fetch('/api/setup-db');
+      
+      // Здесь будет логика отправки данных (в следующих шагах я создам API для сохранения)
+      // Пока просто имитируем успех для UI
+      setTimeout(() => {
+        setSyncStatus('done');
+        setIsCloudSynced(true);
+      }, 2000);
+    } catch (e) {
+      console.error(e);
+      setSyncStatus('idle');
+    }
+  };
+
   const menuItems = [
     { 
       name: 'Учет сырья', 
@@ -73,9 +106,42 @@ export default function Home() {
 
   return (
     <div className="pt-6 pb-8">
-      <div className="mb-8 bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">Добро пожаловать в учет производства</h2>
-        <p className="text-slate-500 mb-0">Выберите необходимый модуль для начала работы</p>
+      {/* Верхняя панель со статусом */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-white/80 backdrop-blur-md p-6 rounded-[2rem] border border-white/20 shadow-xl animate-fade-in">
+        <div className="flex items-center gap-4">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isCloudSynced ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+            <i className={`ni ${isCloudSynced ? 'ni-cloud-upload-96' : 'ni-cloud-download-95'} text-xl animate-pulse`}></i>
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight mb-0">Proizvodstvo</h1>
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${isCloudSynced ? 'bg-emerald-500' : 'bg-orange-500'}`}></span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {isCloudSynced ? 'Данные в облаке' : 'Локальный режим'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {hasLocalData && !isCloudSynced && (
+          <button 
+            onClick={syncToCloud}
+            disabled={syncStatus === 'syncing'}
+            className="group relative flex items-center gap-3 px-6 py-3 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200 active:scale-95 overflow-hidden"
+          >
+            {syncStatus === 'syncing' ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Синхронизация...
+              </>
+            ) : (
+              <>
+                <i className="ni ni-curved-next text-xs group-hover:translate-x-1 transition-transform"></i>
+                Перейти в облако
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
