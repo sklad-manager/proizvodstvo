@@ -55,8 +55,21 @@ export async function GET() {
       );
     `;
 
+    // 5. Расходы (Запланированные и мелкие)
+    await client.sql`
+      CREATE TABLE IF NOT EXISTS expenses (
+        id TEXT PRIMARY KEY,
+        category TEXT NOT NULL,
+        description TEXT,
+        amount DECIMAL(12,2) NOT NULL,
+        date DATE NOT NULL,
+        status TEXT DEFAULT 'planned', -- 'planned', 'paid'
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
     await client.sql`COMMIT`;
-    return NextResponse.json({ message: "База данных успешно инициализирована" }, { status: 200 });
+    return NextResponse.json({ success: true, message: "База данных Proizvodstvo полностью готова (Склад, График, ТО, Расходы)" }, { status: 200 });
   } catch (error: any) {
     await client.sql`ROLLBACK`;
     return NextResponse.json({ error: error.message }, { status: 500 });
