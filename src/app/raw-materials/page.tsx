@@ -21,6 +21,7 @@ interface Category {
 export default function RawMaterialsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isCloudMode, setIsCloudMode] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [openedCategoryId, setOpenedCategoryId] = useState<string | null>(null);
@@ -29,86 +30,151 @@ export default function RawMaterialsPage() {
   const [newBaleNumber, setNewBaleNumber] = useState('');
   const [newBaleWeight, setNewBaleWeight] = useState('');
 
+  const loadData = async () => {
+    const cloudSynced = localStorage.getItem('proizvodstvo_is_synced') === 'true';
+    setIsCloudMode(cloudSynced);
+
+    if (cloudSynced) {
+      try {
+        const res = await fetch('/api/raw-materials');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setCategories(data);
+        }
+      } catch (e) {
+        console.error("Ошибка загрузки из облака", e);
+      }
+    } else {
+      const saved = localStorage.getItem('proizvodstvo_raw_materials');
+      if (saved) {
+        try {
+          setCategories(JSON.parse(saved));
+        } catch (e) {
+          console.error("Ошибка загрузки сырья", e);
+        }
+      } else {
+        setCategories([{ id: 'cat1', name: 'Вискоза 1.7 dtex', bales: [] }]);
+      }
+    }
+    setIsLoaded(true);
+  };
+
   useEffect(() => {
     const now = new Date();
     setSelectedDate(now.toISOString().split('T')[0]);
+    loadData();
 
-    const saved = localStorage.getItem('proizvodstvo_raw_materials');
-    if (saved) {
-      try {
-        setCategories(JSON.parse(saved));
-      } catch (e) {
-        console.error("Ошибка загрузки сырья", e);
-      }
-    } else {
-      setCategories([{ id: 'cat1', name: 'Вискоза 1.7 dtex', bales: [] }]);
-    }
-    setIsLoaded(true);
+    // Для облака делаем автообновление раз в 10 секунд
+    const interval = setInterval(() => {
+      const cloudSynced = localStorage.getItem('proizvodstvo_is_synced') === 'true';
+      if (cloudSynced) loadData();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
+  // Сохранение в локал (только если НЕ в облаке)
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && !isCloudMode) {
       localStorage.setItem('proizvodstvo_raw_materials', JSON.stringify(categories));
     }
-  }, [categories, isLoaded]);
+  }, [categories, isLoaded, isCloudMode]);
 
-  const addCategory = () => {
+  const addCategory = async () => {
     if (newCategoryName.trim()) {
       const newCat = { id: Date.now().toString(), name: newCategoryName, bales: [] };
-      setCategories([...categories, newCat]);
+      
+      if (isCloudMode) {
+        await fetch('/api/raw-materials', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'category', ...newCat })
+        });
+        loadData();
+      } else {
+        setCategories([...categories, newCat]);
+      }
       setNewCategoryName('');
     }
   };
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = async (id: string) => {
     if (confirm('Удалить эту папку и всё сырье в ней?')) {
-      setCategories(categories.filter(c => c.id !== id));
+      if (isCloudMode) {
+        await fetch(`/api/raw-materials?type=category&id=${id}`, { method: 'DELETE' });
+        loadData();
+      } else {
+        setCategories(categories.filter(c => c.id !== id));
+      }
       if (openedCategoryId === id) setOpenedCategoryId(null);
     }
   };
 
-  const addBale = (catId: string) => {
+  const addBale = async (catId: string) => {
     if (newBaleWeight) {
-      setCategories(categories.map(cat => {
-        if (cat.id === catId) {
-          const newBale: Bale = {
-            id: Date.now().toString(),
-            number: newBaleNumber || (cat.bales.length + 1).toString(),
-            weight: parseFloat(newBaleWeight),
-            receivedDate: selectedDate,
-            isConsumed: false
-          };
-          return { ...cat, bales: [newBale, ...cat.bales] };
-        }
-        return cat;
-      }));
+      const newBale = {
+        id: Date.now().toString(),
+        number: newBaleNumber || (categories.find(c => c.id === catId)?.bales.length + 1).toString(),
+        weight: parseFloat(newBaleWeight),
+        receivedDate: selectedDate,
+        category_id: catId
+      };
+
+      if (isCloudMode) {
+        await fetch('/api/raw-materials', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'bale', ...newBale })
+        });
+        loadData();
+      } else {
+        setCategories(categories.map(cat => {
+          if (cat.id === catId) {
+            return { ...cat, bales: [{ ...newBale, isConsumed: false }, ...cat.bales] };
+          }
+          return cat;
+        }));
+      }
       setNewBaleNumber('');
       setNewBaleWeight('');
     }
   };
 
-  const consumeBale = (catId: string, baleId: string) => {
-    setCategories(categories.map(cat => {
-      if (cat.id === catId) {
-        return {
-          ...cat,
-          bales: cat.bales.map(bale => 
-            bale.id === baleId ? { ...bale, isConsumed: true, consumedDate: new Date().toISOString().split('T')[0] } : bale
-          )
-        };
-      }
-      return cat;
-    }));
-  };
-
-  const deleteBale = (catId: string, baleId: string) => {
-    if (confirm('Удалить этот тюк из базы?')) {
+  const consumeBale = async (catId: string, baleId: string) => {
+    const consumedDate = new Date().toISOString().split('T')[0];
+    
+    if (isCloudMode) {
+      await fetch('/api/raw-materials', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: baleId, isConsumed: true, consumedDate })
+      });
+      loadData();
+    } else {
       setCategories(categories.map(cat => {
         if (cat.id === catId) {
-          return { ...cat, bales: cat.bales.filter(b => b.id !== baleId) };
+          return {
+            ...cat,
+            bales: cat.bales.map(bale => 
+              bale.id === baleId ? { ...bale, isConsumed: true, consumedDate } : bale
+            )
+          };
         }
         return cat;
       }));
+    }
+  };
+
+  const deleteBale = async (catId: string, baleId: string) => {
+    if (confirm('Удалить этот тюк из базы?')) {
+      if (isCloudMode) {
+        await fetch(`/api/raw-materials?type=bale&id=${baleId}`, { method: 'DELETE' });
+        loadData();
+      } else {
+        setCategories(categories.map(cat => {
+          if (cat.id === catId) {
+            return { ...cat, bales: cat.bales.filter(b => b.id !== baleId) };
+          }
+          return cat;
+        }));
+      }
     }
   };
 
@@ -118,7 +184,7 @@ export default function RawMaterialsPage() {
     return { count: active.length, weight: totalWeight.toFixed(1) };
   };
 
-  if (!isLoaded) return <div className="p-10 text-center font-bold text-slate-400 uppercase tracking-widest">Загрузка склада...</div>;
+  if (!isLoaded) return <div className="p-10 text-center font-bold text-slate-400 uppercase tracking-widest">Загрузка данных...</div>;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6 pb-20 max-w-full overflow-x-hidden">
@@ -129,7 +195,10 @@ export default function RawMaterialsPage() {
             <i className="ni ni-bold-left text-sm md:text-xs"></i>
           </Link>
           <div>
-            <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Учет сырья</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Учет сырья</h2>
+              {isCloudMode && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[8px] font-black uppercase rounded-md tracking-tighter animate-pulse">Cloud</span>}
+            </div>
             <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 tracking-widest">
               Дата: <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-slate-50 px-2 py-0.5 rounded-lg border-none outline-none text-slate-600 font-bold" />
             </div>

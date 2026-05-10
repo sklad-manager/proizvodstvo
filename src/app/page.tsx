@@ -9,7 +9,11 @@ export default function Home() {
   const [syncStatus, setSyncStatus] = useState('idle');
 
   useEffect(() => {
-    // Проверка наличия данных в localStorage
+    // Проверка статуса синхронизации
+    const synced = localStorage.getItem('proizvodstvo_is_synced') === 'true';
+    setIsCloudSynced(synced);
+
+    // Проверка наличия локальных данных
     const employees = localStorage.getItem('proizvodstvo_employees');
     const materials = localStorage.getItem('proizvodstvo_raw_materials');
     const maintenance = localStorage.getItem('proizvodstvo_maintenance');
@@ -20,19 +24,41 @@ export default function Home() {
   }, []);
 
   const syncToCloud = async () => {
+    if (!confirm('Перенести все текущие данные в облако? После этого они будут доступны на всех устройствах.')) return;
+    
     setSyncStatus('syncing');
     try {
-      // 1. Инициализация базы (на всякий случай)
+      // 1. Инициализация базы
       await fetch('/api/setup-db');
       
-      // Здесь будет логика отправки данных (в следующих шагах я создам API для сохранения)
-      // Пока просто имитируем успех для UI
-      setTimeout(() => {
-        setSyncStatus('done');
-        setIsCloudSynced(true);
-      }, 2000);
+      // 2. Миграция Сырья
+      const localMaterials = localStorage.getItem('proizvodstvo_raw_materials');
+      if (localMaterials) {
+        const categories = JSON.parse(localMaterials);
+        for (const cat of categories) {
+          // Создаем категорию
+          await fetch('/api/raw-materials', {
+            method: 'POST',
+            body: JSON.stringify({ type: 'category', id: cat.id, name: cat.name })
+          });
+          // Создаем тюки
+          for (const bale of cat.bales) {
+            await fetch('/api/raw-materials', {
+              method: 'POST',
+              body: JSON.stringify({ type: 'bale', category_id: cat.id, ...bale })
+            });
+          }
+        }
+      }
+
+      // Запоминаем статус
+      localStorage.setItem('proizvodstvo_is_synced', 'true');
+      setSyncStatus('done');
+      setIsCloudSynced(true);
+      alert('Данные успешно перенесены в облако!');
     } catch (e) {
       console.error(e);
+      alert('Ошибка при синхронизации. Проверьте интернет.');
       setSyncStatus('idle');
     }
   };
