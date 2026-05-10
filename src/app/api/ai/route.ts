@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   // 2. Прямой запрос к Google API (версия v1)
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
   const payload = {
     contents: [
