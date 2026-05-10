@@ -219,12 +219,6 @@ export default function RawMaterialsPage() {
                       </button>
                     </div>
 
-                      </div>
-                      <button onClick={() => addBale(cat.id)} className="h-[46px] px-8 rounded-2xl bg-orange-500 text-white font-black uppercase text-xs tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-orange-100">
-                        Принять тюк
-                      </button>
-                    </div>
-
                     {/* Таблица */}
                     <div className="flex-1 overflow-y-auto p-8 pt-0">
                       <table className="w-full border-collapse text-left">
