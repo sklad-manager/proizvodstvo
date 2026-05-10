@@ -146,30 +146,31 @@ export default function Home() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
         {menuItems.map((item, index) => (
-          <Link href={item.href} key={index} className="group block h-full outline-none">
-            <div className={`relative flex flex-col items-center text-center h-full bg-white rounded-3xl border border-gray-100 p-8 transition-all duration-500 ease-out hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] hover:border-transparent z-10 ${item.hoverBg}`}>
+          <Link href={item.href} key={index} className="group block outline-none">
+            <div className={`relative flex items-center md:flex-col md:text-center gap-4 md:gap-0 bg-white rounded-2xl md:rounded-3xl border border-gray-100 p-4 md:p-8 transition-all hover:shadow-lg ${item.hoverBg}`}>
               
               {/* Блок иконки */}
-              <div className={`relative flex items-center justify-center w-20 h-20 mb-6 rounded-2xl ${item.gradient} shadow-lg group-hover:scale-110 transition-transform duration-500 ease-out`}>
-                <i className={`ni ${item.icon} text-3xl text-white`}></i>
-                {/* Мягкая тень под иконкой */}
-                <div className={`absolute -bottom-2 w-14 h-4 ${item.gradient} blur-xl opacity-60 group-hover:opacity-100 transition-opacity duration-500`}></div>
+              <div className={`flex items-center justify-center w-12 h-12 md:w-20 md:h-20 md:mb-6 rounded-xl md:rounded-2xl shrink-0 ${item.gradient} shadow-lg text-white`}>
+                <i className={`ni ${item.icon} text-lg md:text-3xl`}></i>
               </div>
 
               {/* Текстовый блок */}
-              <div className="relative z-10">
-                <h3 className={`mb-3 text-xl font-bold text-slate-800 transition-colors duration-300 ${item.textColor}`}>
+              <div className="flex-1">
+                <h3 className={`text-base md:text-xl font-bold text-slate-800 mb-0 md:mb-3 ${item.textColor}`}>
                   {item.name}
                 </h3>
-                <p className="text-sm leading-relaxed text-slate-500 mb-0 font-medium">
+                <p className="text-xs md:text-sm text-slate-500 mb-0 font-medium line-clamp-1 md:line-clamp-none">
                   {item.description}
                 </p>
               </div>
 
-              {/* Декоративная линия снизу */}
-              <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-1 rounded-t-full ${item.line} group-hover:w-1/2 transition-all duration-500 ease-out opacity-80`}></div>
+              {/* Стрелочка для мобилок */}
+              <i className="ni ni-bold-right text-[10px] text-slate-300 md:hidden"></i>
+
+              {/* Декоративная линия (только для десктопа) */}
+              <div className={`hidden md:block absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-1 rounded-t-full ${item.line} group-hover:w-1/2 transition-all duration-500 opacity-80`}></div>
             </div>
           </Link>
         ))}

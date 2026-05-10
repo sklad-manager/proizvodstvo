@@ -125,8 +125,8 @@ export default function RawMaterialsPage() {
       {/* Шапка */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-3xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-3 md:gap-4">
-          <Link href="/" className="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-50 text-slate-600 hover:bg-gray-100 transition-colors">
-            <i className="ni ni-bold-left text-xs"></i>
+          <Link href="/" className="flex items-center justify-center w-12 h-12 md:w-10 md:h-10 rounded-2xl bg-slate-800 text-white md:bg-gray-50 md:text-slate-600 hover:bg-black md:hover:bg-gray-100 transition-all shadow-lg md:shadow-none">
+            <i className="ni ni-bold-left text-sm md:text-xs"></i>
           </Link>
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Учет сырья</h2>
