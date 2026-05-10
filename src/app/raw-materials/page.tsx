@@ -113,7 +113,7 @@ export default function RawMaterialsPage() {
     if (newBaleWeight) {
       const newBale = {
         id: Date.now().toString(),
-        number: newBaleNumber || (categories.find(c => c.id === catId)?.bales.length + 1).toString(),
+        number: newBaleNumber || ((categories.find(c => c.id === catId)?.bales.length || 0) + 1).toString(),
         weight: parseFloat(newBaleWeight),
         receivedDate: selectedDate,
         category_id: catId
