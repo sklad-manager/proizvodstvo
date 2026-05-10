@@ -174,56 +174,51 @@ export default function RawMaterialsPage() {
                     Общий вес: <span className="text-orange-600">{stats.weight} кг</span>
                   </div>
                 </div>
-              </div>
-              <div className={`h-2 w-full bg-gradient-to-r from-orange-400 to-yellow-500 opacity-20 ${openedCategoryId === cat.id ? 'opacity-100' : ''}`}></div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Модальное окно (Открытая папка) */}
+        {/* Модальное окно (Открытая папка) */}
       {openedCategoryId && (
-        <div className="fixed inset-0 z-999 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-5xl h-[90vh] overflow-hidden flex flex-col animate-slide-up border border-white/20">
+        <div className="fixed inset-0 z-999 flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-t-[3rem] md:rounded-[3rem] shadow-2xl w-full max-w-5xl h-[92vh] md:h-[90vh] overflow-hidden flex flex-col animate-slide-up border border-white/20">
             {/* Шапка модалки */}
             {categories.filter(c => c.id === openedCategoryId).map(cat => {
               const stats = getStats(cat.bales);
               return (
                 <React.Fragment key={cat.id}>
-                  <div className="p-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white flex items-center justify-between shadow-lg">
-                    <div className="flex items-center gap-6">
-                      <div className="w-16 h-16 bg-white/10 rounded-[1.5rem] flex items-center justify-center">
-                        <i className="ni ni-folder-17 text-3xl text-orange-400"></i>
+                  <div className="p-6 md:p-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white flex items-center justify-between shadow-lg shrink-0">
+                    <div className="flex items-center gap-4 md:gap-6">
+                      <div className="w-12 h-12 md:w-16 md:h-16 bg-white/10 rounded-2xl flex items-center justify-center">
+                        <i className="ni ni-folder-17 text-xl md:text-3xl text-orange-400"></i>
                       </div>
                       <div>
-                        <h2 className="text-2xl font-black mb-1">{cat.name}</h2>
-                        <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-widest text-white/50">
+                        <h2 className="text-lg md:text-2xl font-black mb-0 md:mb-1">{cat.name}</h2>
+                        <div className="flex flex-wrap items-center gap-2 md:gap-4 text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-white/50">
                           <span>На складе: <b className="text-orange-400">{stats.count} тюков</b></span>
-                          <span className="w-1 h-1 bg-white/20 rounded-full"></span>
-                          <span>Общий вес: <b className="text-orange-400">{stats.weight} кг</b></span>
+                          <span className="hidden md:inline w-1 h-1 bg-white/20 rounded-full"></span>
+                          <span>Вес: <b className="text-orange-400">{stats.weight} кг</b></span>
                         </div>
                       </div>
                     </div>
-                    <button onClick={() => setOpenedCategoryId(null)} className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all">
-                      <i className="ni ni-fat-remove text-2xl"></i>
+                    <button onClick={() => setOpenedCategoryId(null)} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+                      <i className="ni ni-fat-remove text-xl md:text-2xl"></i>
                     </button>
                   </div>
 
                   {/* Контент модалки */}
                   <div className="flex-1 overflow-hidden flex flex-col">
                     {/* Форма добавления */}
-                    <div className="p-8 border-b border-gray-100 bg-gray-50/50 flex flex-wrap items-end gap-4">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase px-2">Номер/Партия</label>
-                        <input type="text" placeholder="Напр. 402" className="px-4 py-3 rounded-2xl border border-gray-200 outline-none w-32 focus:border-orange-400" value={newBaleNumber} onChange={(e) => setNewBaleNumber(e.target.value)} />
+                    <div className="p-6 md:p-8 border-b border-gray-100 bg-gray-50/50 flex flex-wrap items-end gap-3 md:gap-4 shrink-0">
+                      <div className="flex flex-col gap-1.5 flex-1 min-w-[100px]">
+                        <label className="text-[10px] font-black text-slate-400 uppercase px-1">№ Тюка</label>
+                        <input type="text" placeholder="№" className="px-4 py-2.5 rounded-xl border border-gray-200 outline-none w-full focus:border-orange-400 text-sm" value={newBaleNumber} onChange={(e) => setNewBaleNumber(e.target.value)} />
                       </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase px-2">Вес (кг) *</label>
-                        <input type="number" placeholder="200.5" className="px-4 py-3 rounded-2xl border border-gray-200 outline-none w-40 focus:border-orange-400" value={newBaleWeight} onChange={(e) => setNewBaleWeight(e.target.value)} />
+                      <div className="flex flex-col gap-1.5 flex-1 min-w-[120px]">
+                        <label className="text-[10px] font-black text-slate-400 uppercase px-1">Вес (кг)</label>
+                        <input type="number" placeholder="0.0" className="px-4 py-2.5 rounded-xl border border-gray-200 outline-none w-full focus:border-orange-400 text-sm" value={newBaleWeight} onChange={(e) => setNewBaleWeight(e.target.value)} />
                       </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase px-2">Дата прихода</label>
-                        <input type="date" className="px-4 py-3 rounded-2xl border border-gray-200 outline-none text-slate-500 bg-white focus:border-orange-400" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+                      <button onClick={() => addBale(cat.id)} className="h-[42px] px-6 rounded-xl bg-orange-500 text-white font-black uppercase text-[10px] tracking-widest hover:bg-orange-600 shadow-md w-full md:w-auto">
+                        Принять
+                      </button>
+                    </div>
+
                       </div>
                       <button onClick={() => addBale(cat.id)} className="h-[46px] px-8 rounded-2xl bg-orange-500 text-white font-black uppercase text-xs tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-orange-100">
                         Принять тюк

@@ -106,10 +106,10 @@ export default function SchedulePage() {
   if (!isLoaded) return <div className="p-10 text-center font-bold text-slate-400">Загрузка базы...</div>;
 
   return (
-    <div className="flex flex-col gap-6 pb-20">
-      {/* Шапка */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-4">
+    <div className="flex flex-col gap-4 md:gap-6 pb-20 max-w-full overflow-x-hidden">
+      {/* Шапка страницы */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-3xl shadow-sm border border-gray-100">
+        <div className="flex items-center gap-3 md:gap-4">
           <Link href="/" className="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-50 text-slate-600 hover:bg-gray-100 transition-colors">
             <i className="ni ni-bold-left text-xs"></i>
           </Link>
@@ -118,9 +118,17 @@ export default function SchedulePage() {
             <div className="text-xs font-bold uppercase text-slate-400">График и табель персонала</div>
           </div>
         </div>
-        <div className="flex gap-2">
-           <input type="text" placeholder="Имя сотрудника..." className="px-4 py-2 rounded-xl border border-gray-200 focus:border-emerald-400 outline-none text-sm w-48 lg:w-64" value={newEmployeeName} onChange={(e) => setNewEmployeeName(e.target.value)} />
-           <button onClick={addEmployee} className="px-5 py-2 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-black transition-all">Добавить</button>
+        <div className="flex gap-2 w-full md:w-auto">
+           <input 
+              type="text" 
+              placeholder="ФИО сотрудника..."
+              className="flex-1 md:flex-none px-4 py-2 rounded-xl border border-gray-200 focus:border-red-400 outline-none text-sm min-w-0 md:min-w-48"
+              value={newEmployeeName}
+              onChange={(e) => setNewEmployeeName(e.target.value)}
+            />
+            <button onClick={addEmployee} className="px-4 md:px-5 py-2 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-black transition-all">
+              +
+            </button>
         </div>
       </div>
 
@@ -260,9 +268,9 @@ export default function SchedulePage() {
 
       {/* КАРТОЧКА СОТРУДНИКА */}
       {selectedEmployeeForModal && (
-        <div className="fixed inset-0 z-999 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up">
-             <div className={`p-8 flex items-center justify-between ${selectedEmployeeForModal.isActive ? 'bg-slate-800' : 'bg-slate-500'} text-white`}>
+        <div className="fixed inset-0 z-999 flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up border border-white/20 h-[85vh] md:h-auto flex flex-col">
+             <div className="p-6 md:p-8 flex items-center justify-between bg-slate-800 text-white shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl font-black">
                     {selectedEmployeeForModal.name.charAt(0)}
