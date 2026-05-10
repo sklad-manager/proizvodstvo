@@ -170,11 +170,12 @@ export default function RawMaterialsPage() {
                     <span className="text-3xl font-black text-orange-500">{stats.count}</span>
                     <span className="text-sm font-bold text-slate-400 uppercase">тюков</span>
                   </div>
-                  <div className="text-sm font-black text-slate-600 mt-1">
-                    Общий вес: <span className="text-orange-600">{stats.weight} кг</span>
-                  </div>
-                </div>
-        {/* Модальное окно (Открытая папка) */}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Модальное окно (Открытая папка) */}
       {openedCategoryId && (
         <div className="fixed inset-0 z-999 flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-t-[3rem] md:rounded-[3rem] shadow-2xl w-full max-w-5xl h-[92vh] md:h-[90vh] overflow-hidden flex flex-col animate-slide-up border border-white/20">
