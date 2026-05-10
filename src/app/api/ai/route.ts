@@ -1,60 +1,66 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  const apiKey = "AIzaSyDbek424VzJtKSoXvp3IJ4Jvp8R29y54HQ"; // Ключ исправлен
-  if (!apiKey) {
-    return NextResponse.json({ error: "API Ключ не настроен. Пожалуйста, добавьте GOOGLE_AI_KEY в Vercel." }, { status: 500 });
-  }
-
+  const apiKey = "AIzaSyDbek424VzJtKSoXvp3IJ4Jvp8R29y54HQ";
   const { message, history } = await request.json();
 
-  // 1. Собираем данные из базы для контекста ИИ
+  // 1. Сбор контекста из БД
   const client = await db.connect();
-  let context = "";
+  let contextText = "";
   try {
     const materials = await client.sql`SELECT * FROM raw_materials_categories`;
     const bales = await client.sql`SELECT * FROM raw_materials_bales WHERE is_consumed = false`;
     const employees = await client.sql`SELECT * FROM employees`;
     const expenses = await client.sql`SELECT * FROM expenses ORDER BY date DESC LIMIT 20`;
 
-    context = `
-      Ты - интеллектуальный помощник производства "Proizvodstvo MES". 
-      У тебя есть доступ к актуальным данным системы:
-      - Склад: ${materials.rowCount} категорий сырья. Активных тюков на складе: ${bales.rowCount}.
-      - Персонал: В базе ${employees.rowCount} сотрудников.
-      - Финансы: Последние 20 записей о тратах включают категории: ${Array.from(new Set(expenses.rows.map(r => r.category))).join(', ')}.
+    contextText = `
+      Ты - интеллектуальный помощник "Proizvodstvo MES". 
+      Твои данные:
+      - Склад: ${materials.rowCount} категорий, ${bales.rowCount} активных тюков.
+      - Люди: ${employees.rowCount} сотрудников в базе.
+      - Траты: Последние записи включают ${expenses.rows.slice(0,5).map(e => `${e.description} (${e.amount} грн)`).join(', ')}.
       
-      Отвечай кратко, профессионально и по делу. Если пользователь спрашивает о данных, которых нет в этом кратком отчете, скажи, что тебе нужно время на глубокий анализ.
-      Используй данные для ответов на вопросы о производстве.
+      Отвечай кратко и профессионально на русском или украинском языке.
     `;
   } catch (e) {
-    console.error("Ошибка сбора контекста", e);
-    context = "Ты помощник производства. Данные базы временно недоступны.";
+    contextText = "Ты помощник производства. Помогай с вопросами управления.";
   } finally {
     client.release();
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  // Используем новейшую модель без лишних параметров для авто-определения версии
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
-  });
+  // 2. Прямой запрос к Google API (версия v1)
+  const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+  const payload = {
+    contents: [
+      { role: "user", parts: [{ text: contextText }] },
+      { role: "model", parts: [{ text: "Принято. Я готов помогать." }] },
+      ...history.map((h: any) => ({
+        role: h.role === 'model' ? 'model' : 'user',
+        parts: h.parts
+      })),
+      { role: "user", parts: [{ text: message }] }
+    ]
+  };
 
   try {
-    const chat = model.startChat({
-      history: [
-        { role: "user", parts: [{ text: context }] },
-        { role: "model", parts: [{ text: "Принято. Я готов помогать с управлением производством Proizvodstvo MES." }] },
-        ...history
-      ],
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
 
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
-    return NextResponse.json({ text: response.text() });
+    const data = await response.json();
+
+    if (data.error) {
+      return NextResponse.json({ error: `Google API Error: ${data.error.message}` }, { status: 500 });
+    }
+
+    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Извините, я не смог сформировать ответ.";
+    return NextResponse.json({ text: aiText });
+
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: `Fetch Error: ${error.message}` }, { status: 500 });
   }
 }
