@@ -37,7 +37,10 @@ export async function POST(request: Request) {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  // Используем новейшую модель без лишних параметров для авто-определения версии
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+  });
 
   try {
     const chat = model.startChat({
