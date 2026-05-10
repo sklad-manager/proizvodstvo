@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 interface Employee {
-  id: number;
+  id: string; // В базе данных id строковые (Date.now())
   name: string;
   position: string;
   isActive: boolean;
@@ -12,87 +12,150 @@ interface Employee {
 }
 
 export default function SchedulePage() {
-  // Загрузка начальных данных из localStorage или использование пустых/демо
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isCloudMode, setIsCloudMode] = useState(false);
 
   const [newEmployeeName, setNewEmployeeName] = useState('');
   const [selectedEmployeeForModal, setSelectedEmployeeForModal] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
-  const [viewDate, setViewDate] = useState(new Date(2026, 4, 1)); 
+  const [viewDate, setViewDate] = useState(new Date()); 
 
-  // 1. Инициализация даты и загрузка данных
+  const loadData = async () => {
+    const cloudSynced = localStorage.getItem('proizvodstvo_is_synced') === 'true';
+    setIsCloudMode(cloudSynced);
+
+    if (cloudSynced) {
+      try {
+        const res = await fetch('/api/schedule');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setEmployees(data);
+        }
+      } catch (e) {
+        console.error("Ошибка загрузки графика из облака", e);
+      }
+    } else {
+      const saved = localStorage.getItem('proizvodstvo_employees');
+      if (saved) {
+        try {
+          setEmployees(JSON.parse(saved));
+        } catch (e) {
+          console.error("Ошибка загрузки данных", e);
+        }
+      } else {
+        setEmployees([
+          { id: '1', name: 'Иванов Иван', position: 'Оператор линии', isActive: true, attendance: ['2026-05-01', '2026-05-10'] },
+        ]);
+      }
+    }
+    setIsLoaded(true);
+  };
+
   useEffect(() => {
     const now = new Date();
     setSelectedDate(now.toISOString().split('T')[0]);
     setViewDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    loadData();
 
-    const saved = localStorage.getItem('proizvodstvo_employees');
-    if (saved) {
-      try {
-        setEmployees(JSON.parse(saved));
-      } catch (e) {
-        console.error("Ошибка загрузки данных", e);
-      }
-    } else {
-      // Демо-данные только если база пуста
-      setEmployees([
-        { id: 1, name: 'Иванов Иван', position: 'Оператор линии', isActive: true, attendance: ['2026-05-01', '2026-05-10'] },
-      ]);
-    }
-    setIsLoaded(true);
+    const interval = setInterval(() => {
+      const cloudSynced = localStorage.getItem('proizvodstvo_is_synced') === 'true';
+      if (cloudSynced) loadData();
+    }, 10000);
+    return () => clearInterval(interval);
   }, []);
 
-  // 2. Автоматическое сохранение при любом изменении списка
+  // Сохранение в локал (только если НЕ в облаке)
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && !isCloudMode) {
       localStorage.setItem('proizvodstvo_employees', JSON.stringify(employees));
     }
-  }, [employees, isLoaded]);
+  }, [employees, isLoaded, isCloudMode]);
 
   const changeMonth = (offset: number) => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + offset, 1));
   };
 
-  const addEmployee = () => {
+  const addEmployee = async () => {
     if (newEmployeeName.trim()) {
-      setEmployees([...employees, {
-        id: Date.now(),
+      const newEmp = {
+        id: Date.now().toString(),
         name: newEmployeeName,
         position: 'Сотрудник',
         isActive: true,
         attendance: [],
-      }]);
+      };
+
+      if (isCloudMode) {
+        await fetch('/api/schedule', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'employee', ...newEmp })
+        });
+        loadData();
+      } else {
+        setEmployees([...employees, newEmp]);
+      }
       setNewEmployeeName('');
     }
   };
 
-  const toggleAttendanceOnDate = (id: number, date: string) => {
-    setEmployees(employees.map(emp => {
-      if (emp.id === id) {
-        const hasWorked = emp.attendance.includes(date);
-        return { ...emp, attendance: hasWorked ? emp.attendance.filter(d => d !== date) : [...emp.attendance, date] };
+  const toggleAttendanceOnDate = async (id: string, date: string) => {
+    const emp = employees.find(e => e.id === id);
+    if (!emp) return;
+    const isMarked = emp.attendance.includes(date);
+
+    if (isCloudMode) {
+      if (isMarked) {
+        await fetch(`/api/schedule?type=attendance&id=${id}&date=${date}`, { method: 'DELETE' });
+      } else {
+        await fetch('/api/schedule', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'attendance', employee_id: id, date })
+        });
       }
-      return emp;
-    }));
+      loadData();
+    } else {
+      setEmployees(employees.map(e => {
+        if (e.id === id) {
+          const hasWorked = e.attendance.includes(date);
+          return { ...e, attendance: hasWorked ? e.attendance.filter(d => d !== date) : [...e.attendance, date] };
+        }
+        return e;
+      }));
+    }
   };
 
-  const deleteEmployee = (id: number) => {
+  const deleteEmployee = async (id: string) => {
     if (confirm('Удалить сотрудника полностью?')) {
-      setEmployees(employees.filter(e => e.id !== id));
+      if (isCloudMode) {
+        await fetch(`/api/schedule?type=employee&id=${id}`, { method: 'DELETE' });
+        loadData();
+      } else {
+        setEmployees(employees.filter(e => e.id !== id));
+      }
       setSelectedEmployeeForModal(null);
     }
   };
 
-  const archiveEmployee = (id: number) => {
+  const archiveEmployee = async (id: string) => {
     if (confirm('Отправить сотрудника в архив?')) {
-      setEmployees(employees.map(e => e.id === id ? { ...e, isActive: false } : e));
+      if (isCloudMode) {
+        await fetch('/api/schedule', { method: 'PATCH', body: JSON.stringify({ id, isActive: false }) });
+        loadData();
+      } else {
+        setEmployees(employees.map(e => e.id === id ? { ...e, isActive: false } : e));
+      }
       setSelectedEmployeeForModal(null);
     }
   };
 
-  const restoreEmployee = (id: number) => {
-    setEmployees(employees.map(e => e.id === id ? { ...e, isActive: true } : e));
+  const restoreEmployee = async (id: string) => {
+    if (isCloudMode) {
+      await fetch('/api/schedule', { method: 'PATCH', body: JSON.stringify({ id, isActive: true }) });
+      loadData();
+    } else {
+      setEmployees(employees.map(e => e.id === id ? { ...e, isActive: true } : e));
+    }
     setSelectedEmployeeForModal(null);
   };
 
@@ -110,12 +173,15 @@ export default function SchedulePage() {
       {/* Шапка страницы */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-3xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-3 md:gap-4">
-          <Link href="/" className="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-50 text-slate-600 hover:bg-gray-100 transition-colors">
-            <i className="ni ni-bold-left text-xs"></i>
+          <Link href="/" className="flex items-center justify-center w-12 h-12 md:w-10 md:h-10 rounded-2xl bg-slate-800 text-white md:bg-gray-50 md:text-slate-600 hover:bg-black md:hover:bg-gray-100 transition-all shadow-lg md:shadow-none">
+            <i className="ni ni-bold-left text-sm md:text-xs"></i>
           </Link>
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Proizvodstvo</h2>
-            <div className="text-xs font-bold uppercase text-slate-400">График и табель персонала</div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">График</h2>
+              {isCloudMode && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[8px] font-black uppercase rounded-md tracking-tighter animate-pulse">Cloud</span>}
+            </div>
+            <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Управление персоналом</div>
           </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
