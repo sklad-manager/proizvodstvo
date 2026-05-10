@@ -204,7 +204,10 @@ export default function RawMaterialsPage() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex gap-2 w-full md:w-auto items-center">
+           <Link href="/ai-assistant" className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-all shadow-sm shrink-0">
+             <i className="ni ni-bulb-61"></i>
+           </Link>
            <input type="text" placeholder="Название папки..." className="flex-1 md:flex-none px-4 py-2 rounded-xl border border-gray-200 focus:border-orange-400 outline-none text-sm min-w-0" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
            <button onClick={addCategory} className="px-4 py-2 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-black transition-all">+</button>
         </div>

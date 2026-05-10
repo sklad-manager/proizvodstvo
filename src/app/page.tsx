@@ -150,6 +150,17 @@ export default function Home() {
       line: 'bg-gradient-to-r from-slate-700 to-slate-900',
       href: '/finance' 
     },
+    { 
+      name: 'ИИ Помощник', 
+      description: 'Умный анализ вашего производства', 
+      icon: 'ni-bulb-61', 
+      gradient: 'bg-gradient-to-br from-purple-600 to-indigo-600',
+      shadow: 'shadow-purple-500/40',
+      hoverBg: 'hover:bg-purple-50/50',
+      textColor: 'group-hover:text-purple-600',
+      line: 'bg-gradient-to-r from-purple-600 to-indigo-600',
+      href: '/ai-assistant' 
+    },
   ];
 
   return (

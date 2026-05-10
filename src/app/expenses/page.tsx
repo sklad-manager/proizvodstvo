@@ -128,12 +128,17 @@ export default function ExpensesPage() {
             </div>
           </div>
         </div>
-        <button 
-          onClick={() => setShowAddForm(!showAddForm)}
-          className={`px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg ${showAddForm ? 'bg-slate-100 text-slate-500' : 'bg-rose-500 text-white shadow-rose-200'}`}
-        >
-          {showAddForm ? 'Отмена' : '+ Добавить расход'}
-        </button>
+        <div className="flex gap-2 items-center">
+          <Link href="/ai-assistant" className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-all shadow-sm shrink-0">
+            <i className="ni ni-bulb-61 text-lg"></i>
+          </Link>
+          <button 
+            onClick={() => setShowAddForm(!showAddForm)}
+            className={`px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg ${showAddForm ? 'bg-slate-100 text-slate-500' : 'bg-rose-500 text-white shadow-rose-200'}`}
+          >
+            {showAddForm ? 'Отмена' : '+ Добавить расход'}
+          </button>
+        </div>
       </div>
 
       {/* Финансовая сводка */}
