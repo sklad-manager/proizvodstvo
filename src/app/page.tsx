@@ -49,6 +49,8 @@ export default function Home() {
             });
           }
         }
+      }
+
       // 3. Миграция Сотрудников
       const localEmployees = localStorage.getItem('proizvodstvo_employees');
       if (localEmployees) {
