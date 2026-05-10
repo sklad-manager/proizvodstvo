@@ -49,13 +49,31 @@ export default function Home() {
             });
           }
         }
+      // 3. Миграция Сотрудников
+      const localEmployees = localStorage.getItem('proizvodstvo_employees');
+      if (localEmployees) {
+        const emps = JSON.parse(localEmployees);
+        for (const emp of emps) {
+          // Создаем сотрудника
+          await fetch('/api/schedule', {
+            method: 'POST',
+            body: JSON.stringify({ type: 'employee', id: emp.id, name: emp.name, isActive: emp.isActive })
+          });
+          // Создаем его смены
+          for (const date of (emp.attendance || [])) {
+            await fetch('/api/schedule', {
+              method: 'POST',
+              body: JSON.stringify({ type: 'attendance', employee_id: emp.id, date })
+            });
+          }
+        }
       }
 
       // Запоминаем статус
       localStorage.setItem('proizvodstvo_is_synced', 'true');
       setSyncStatus('done');
       setIsCloudSynced(true);
-      alert('Данные успешно перенесены в облако!');
+      alert('Данные (Сырье и График) успешно перенесены в облако!');
     } catch (e) {
       console.error(e);
       alert('Ошибка при синхронизации. Проверьте интернет.');
