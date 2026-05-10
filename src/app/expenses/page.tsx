@@ -10,6 +10,7 @@ interface Expense {
   amount: number;
   date: string;
   status: 'planned' | 'paid';
+  payment_method: 'Ф1' | 'Ф2' | 'ФОП';
 }
 
 const CATEGORIES = [
@@ -21,6 +22,8 @@ const CATEGORIES = [
   { id: 'other', name: 'Прочее', icon: 'ni-tag', color: 'bg-slate-500' },
 ];
 
+const PAYMENT_METHODS = ['Ф1', 'Ф2', 'ФОП'];
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -30,6 +33,7 @@ export default function ExpensesPage() {
   const [newAmount, setNewAmount] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newCat, setNewCat] = useState('small');
+  const [newPayMethod, setNewPayMethod] = useState<'Ф1' | 'Ф2' | 'ФОП'>('Ф1');
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
 
   const loadData = async () => {
@@ -60,7 +64,8 @@ export default function ExpensesPage() {
       description: newDesc,
       amount: parseFloat(newAmount),
       date: newDate,
-      status: status
+      status: status,
+      paymentMethod: newPayMethod
     };
 
     try {
@@ -136,7 +141,7 @@ export default function ExpensesPage() {
         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50 flex items-center justify-between overflow-hidden relative group">
           <div>
             <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Запланировано</div>
-            <div className="text-3xl font-black text-slate-800">{stats.totalPlanned.toLocaleString()} ₽</div>
+            <div className="text-3xl font-black text-slate-800">{stats.totalPlanned.toLocaleString()} <span className="text-lg">грн</span></div>
           </div>
           <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300">
             <i className="ni ni-time-alarm text-2xl"></i>
@@ -146,7 +151,7 @@ export default function ExpensesPage() {
         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50 flex items-center justify-between overflow-hidden relative group">
           <div>
             <div className="text-[10px] font-black uppercase text-emerald-400 tracking-widest mb-2">Оплачено</div>
-            <div className="text-3xl font-black text-emerald-500">{stats.totalPaid.toLocaleString()} ₽</div>
+            <div className="text-3xl font-black text-emerald-500">{stats.totalPaid.toLocaleString()} <span className="text-lg">грн</span></div>
           </div>
           <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500">
             <i className="ni ni-check-bold text-2xl"></i>
@@ -158,7 +163,7 @@ export default function ExpensesPage() {
       {/* Форма добавления */}
       {showAddForm && (
         <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border-2 border-rose-100 animate-slide-up">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black uppercase text-slate-400 px-2">Категория</label>
               <select 
@@ -170,36 +175,52 @@ export default function ExpensesPage() {
               </select>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 px-2">Что купили / Планируем</label>
+              <label className="text-[10px] font-black uppercase text-slate-400 px-2">Форма оплаты</label>
+              <div className="flex gap-2">
+                {PAYMENT_METHODS.map(m => (
+                  <button 
+                    key={m} 
+                    onClick={() => setNewPayMethod(m as any)}
+                    className={`flex-1 py-3 rounded-xl font-black text-xs transition-all ${newPayMethod === m ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase text-slate-400 px-2">Описание</label>
               <input 
                 type="text" 
-                placeholder="Описание..." 
+                placeholder="Что купили..." 
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none outline-none font-bold text-sm"
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 px-2">Сумма (₽)</label>
-              <input 
-                type="number" 
-                placeholder="0" 
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none outline-none font-black text-sm text-rose-500"
-                value={newAmount}
-                onChange={(e) => setNewAmount(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 px-2">Дата</label>
-              <input 
-                type="date" 
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none outline-none font-bold text-sm"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 px-2">Сумма (грн)</label>
+                <input 
+                  type="number" 
+                  placeholder="0" 
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none outline-none font-black text-sm text-rose-500"
+                  value={newAmount}
+                  onChange={(e) => setNewAmount(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 px-2">Дата</label>
+                <input 
+                  type="date" 
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none outline-none font-bold text-sm"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                />
+              </div>
             </div>
           </div>
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-3 mt-8">
             <button onClick={() => addExpense('planned')} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all">В план</button>
             <button onClick={() => addExpense('paid')} className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-100 transition-all">Оплачено сейчас</button>
           </div>
@@ -212,7 +233,7 @@ export default function ExpensesPage() {
         {expenses.length === 0 && (
           <div className="py-20 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
              <div className="text-slate-200 text-6xl mb-4"><i className="ni ni-money-coins"></i></div>
-             <p className="font-black uppercase text-xs text-slate-300 tracking-widest">Трат пока нет. Самое время что-нибудь запланировать!</p>
+             <p className="font-black uppercase text-xs text-slate-300 tracking-widest">Трат пока нет.</p>
           </div>
         )}
         {expenses.map((exp) => {
@@ -230,7 +251,9 @@ export default function ExpensesPage() {
                 </div>
                 <div>
                   <div className="font-black text-slate-800 text-sm md:text-base leading-tight">{exp.description}</div>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-600">{exp.payment_method || 'Ф1'}</span>
+                    <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">{category.name}</span>
                     <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
                     <span className="text-[10px] font-bold text-slate-400">{new Date(exp.date).toLocaleDateString('ru-RU')}</span>
@@ -241,7 +264,7 @@ export default function ExpensesPage() {
               <div className="flex items-center gap-4 md:gap-8">
                 <div className="text-right">
                   <div className={`text-base md:text-xl font-black ${exp.status === 'paid' ? 'text-emerald-500' : 'text-slate-800'}`}>
-                    {exp.amount.toLocaleString()} ₽
+                    {exp.amount.toLocaleString()} <span className="text-xs">грн</span>
                   </div>
                   <button 
                     onClick={() => toggleStatus(exp.id, exp.status)}

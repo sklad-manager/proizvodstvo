@@ -64,6 +64,7 @@ export async function GET() {
         amount DECIMAL(12,2) NOT NULL,
         date DATE NOT NULL,
         status TEXT DEFAULT 'planned', -- 'planned', 'paid'
+        payment_method TEXT DEFAULT 'Ф1', -- 'Ф1', 'Ф2', 'ФОП'
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;

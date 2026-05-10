@@ -28,11 +28,11 @@ export async function POST(request: Request) {
   const client = await db.connect();
   try {
     const body = await request.json();
-    const { id, category, description, amount, date, status } = body;
+    const { id, category, description, amount, date, status, paymentMethod } = body;
 
     await client.sql`
-      INSERT INTO expenses (id, category, description, amount, date, status)
-      VALUES (${id}, ${category}, ${description}, ${amount}, ${date}, ${status || 'planned'})
+      INSERT INTO expenses (id, category, description, amount, date, status, payment_method)
+      VALUES (${id}, ${category}, ${description}, ${amount}, ${date}, ${status || 'planned'}, ${paymentMethod || 'Ф1'})
     `;
 
     return NextResponse.json({ success: true });
