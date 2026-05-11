@@ -159,12 +159,29 @@ export default function SchedulePage() {
     setSelectedEmployeeForModal(null);
   };
 
+  // Быстрый переключатель активности (ползунок)
+  const toggleActiveStatus = async (id: string, currentActive: boolean) => {
+    const newActive = !currentActive;
+    if (isCloudMode) {
+      await fetch('/api/schedule', { method: 'PATCH', body: JSON.stringify({ id, isActive: newActive }) });
+      loadData();
+    } else {
+      setEmployees(employees.map(e => e.id === id ? { ...e, isActive: newActive } : e));
+    }
+  };
+
   const daysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const firstDay = (date: Date) => (new Date(date.getFullYear(), date.getMonth(), 1).getDay() + 6) % 7;
 
   const getAttendanceForDate = (dateStr: string) => {
     return employees.filter(e => e.isActive && e.attendance.includes(dateStr)).length;
   };
+
+  // Сортировка: активные сверху, неактивные снизу
+  const sortedActiveEmployees = [
+    ...employees.filter(e => e.isActive),
+    ...employees.filter(e => !e.isActive)
+  ];
 
   if (!isLoaded) return <div className="p-10 text-center font-bold text-slate-400">Загрузка базы...</div>;
 
@@ -272,38 +289,50 @@ export default function SchedulePage() {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-gray-50">
-                    <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-300">Сотрудник</th>
-                    <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-300 text-center">Статус</th>
-                    <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-300 text-right">История</th>
+                    <th className="px-4 md:px-8 py-5 text-[10px] font-black uppercase text-slate-300">Сотрудник</th>
+                    <th className="px-2 md:px-4 py-5 text-[10px] font-black uppercase text-slate-300 text-center">Актив</th>
+                    <th className="px-4 md:px-8 py-5 text-[10px] font-black uppercase text-slate-300 text-center">Статус</th>
+                    <th className="px-4 md:px-8 py-5 text-[10px] font-black uppercase text-slate-300 text-right">Дни</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {employees.filter(e => e.isActive).map((emp) => {
+                  {sortedActiveEmployees.map((emp) => {
                     const isWorked = emp.attendance.includes(selectedDate);
                     return (
-                      <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-8 py-5">
-                          <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setSelectedEmployeeForModal(emp)}>
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black transition-all ${isWorked ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-gray-100 text-slate-400'}`}>
+                      <tr key={emp.id} className={`transition-colors ${emp.isActive ? 'hover:bg-gray-50/50' : 'opacity-40 bg-slate-50/30'}`}>
+                        <td className="px-4 md:px-8 py-4 md:py-5">
+                          <div className="flex items-center gap-3 md:gap-4 cursor-pointer group" onClick={() => setSelectedEmployeeForModal(emp)}>
+                            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center font-black text-sm transition-all ${!emp.isActive ? 'bg-slate-100 text-slate-300' : isWorked ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-gray-100 text-slate-400'}`}>
                               {emp.name.charAt(0)}
                             </div>
                             <div>
-                              <div className="text-sm font-black text-slate-800 group-hover:text-emerald-500 transition-colors">{emp.name}</div>
-                              <div className="text-[10px] text-slate-400 font-bold uppercase">В смене</div>
+                              <div className={`text-sm font-black transition-colors ${emp.isActive ? 'text-slate-800 group-hover:text-emerald-500' : 'text-slate-400 line-through'}`}>{emp.name}</div>
+                              <div className="text-[10px] font-bold uppercase">
+                                {!emp.isActive ? <span className="text-rose-400">Неактивен</span> : <span className="text-slate-400">В смене</span>}
+                              </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-5 text-center">
+                        <td className="px-2 md:px-4 py-4 md:py-5 text-center">
+                          <button 
+                            onClick={() => toggleActiveStatus(emp.id, emp.isActive)}
+                            className={`relative w-12 h-7 rounded-full transition-all duration-300 ${emp.isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                          >
+                            <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${emp.isActive ? 'left-[22px]' : 'left-0.5'}`}></span>
+                          </button>
+                        </td>
+                        <td className="px-4 md:px-8 py-4 md:py-5 text-center">
                           <button 
                             onClick={() => toggleAttendanceOnDate(emp.id, selectedDate)}
-                            className={`px-6 py-2.5 rounded-2xl text-[11px] font-black transition-all
-                              ${isWorked ? 'bg-emerald-500 text-white shadow-md' : 'bg-white border border-gray-100 text-slate-400 hover:text-emerald-500'}
+                            disabled={!emp.isActive}
+                            className={`px-4 md:px-6 py-2 md:py-2.5 rounded-2xl text-[11px] font-black transition-all
+                              ${!emp.isActive ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : isWorked ? 'bg-emerald-500 text-white shadow-md' : 'bg-white border border-gray-100 text-slate-400 hover:text-emerald-500'}
                             `}
                           >
                             {isWorked ? 'РАБОТАЛ' : 'ОТМЕТИТЬ'}
                           </button>
                         </td>
-                        <td className="px-8 py-5 text-right font-black text-slate-400 text-xs">
+                        <td className="px-4 md:px-8 py-4 md:py-5 text-right font-black text-slate-400 text-xs">
                           {emp.attendance.length} дн.
                         </td>
                       </tr>
