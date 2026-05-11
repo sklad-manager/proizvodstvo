@@ -1,7 +1,7 @@
 import { db } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 
-// Получить все расходы
+// Получить все записи (расходы + доходы)
 export async function GET() {
   const client = await db.connect();
   try {
@@ -23,16 +23,16 @@ export async function GET() {
   }
 }
 
-// Добавить расход (крупный или мелкий)
+// Добавить запись
 export async function POST(request: Request) {
   const client = await db.connect();
   try {
     const body = await request.json();
-    const { id, category, description, amount, date, status, paymentMethod } = body;
+    const { id, category, description, amount, date, status, paymentMethod, type, isConfirmed } = body;
 
     await client.sql`
-      INSERT INTO expenses (id, category, description, amount, date, status, payment_method)
-      VALUES (${id}, ${category}, ${description}, ${amount}, ${date}, ${status || 'planned'}, ${paymentMethod || 'Ф1'})
+      INSERT INTO expenses (id, category, description, amount, date, status, payment_method, type, is_confirmed)
+      VALUES (${id}, ${category}, ${description}, ${amount}, ${date}, ${status || 'planned'}, ${paymentMethod || 'Ф1'}, ${type || 'expense'}, ${isConfirmed !== false})
     `;
 
     return NextResponse.json({ success: true });
@@ -43,18 +43,19 @@ export async function POST(request: Request) {
   }
 }
 
-// Изменить статус (Оплачено / Планируется)
+// Изменить статус или подтвердить запись
 export async function PATCH(request: Request) {
   const client = await db.connect();
   try {
     const body = await request.json();
-    const { id, status } = body;
+    const { id, status, isConfirmed } = body;
 
-    await client.sql`
-      UPDATE expenses
-      SET status = ${status}
-      WHERE id = ${id}
-    `;
+    if (isConfirmed !== undefined) {
+      await client.sql`UPDATE expenses SET is_confirmed = ${isConfirmed} WHERE id = ${id}`;
+    }
+    if (status !== undefined) {
+      await client.sql`UPDATE expenses SET status = ${status} WHERE id = ${id}`;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
@@ -64,7 +65,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-// Удалить расход
+// Удалить запись
 export async function DELETE(request: Request) {
   const client = await db.connect();
   try {

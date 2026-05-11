@@ -55,7 +55,7 @@ export async function GET() {
       );
     `;
 
-    // 5. Расходы (Запланированные и мелкие)
+    // 5. Расходы и доходы
     await client.sql`
       CREATE TABLE IF NOT EXISTS expenses (
         id TEXT PRIMARY KEY,
@@ -63,14 +63,20 @@ export async function GET() {
         description TEXT,
         amount DECIMAL(12,2) NOT NULL,
         date DATE NOT NULL,
-        status TEXT DEFAULT 'planned', -- 'planned', 'paid'
-        payment_method TEXT DEFAULT 'Ф1', -- 'Ф1', 'Ф2', 'ФОП'
+        status TEXT DEFAULT 'planned',
+        payment_method TEXT DEFAULT 'Ф1',
+        type TEXT DEFAULT 'expense',
+        is_confirmed BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
 
+    // Миграция: добавляем колонки если их нет (для существующих данных)
+    await client.sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'expense'`;
+    await client.sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS is_confirmed BOOLEAN DEFAULT true`;
+
     await client.sql`COMMIT`;
-    return NextResponse.json({ success: true, message: "База данных Proizvodstvo полностью готова (Склад, График, ТО, Расходы)" }, { status: 200 });
+    return NextResponse.json({ success: true, message: "БД готова (Склад, График, ТО, Финансы + Телеграм)" }, { status: 200 });
   } catch (error: any) {
     await client.sql`ROLLBACK`;
     return NextResponse.json({ error: error.message }, { status: 500 });
