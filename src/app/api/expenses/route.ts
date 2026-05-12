@@ -62,7 +62,16 @@ export async function PATCH(request: Request) {
       await client.sql`UPDATE expenses SET comment = ${comment} WHERE id = ${id}`;
     }
     if (date !== undefined) {
-      await client.sql`UPDATE expenses SET date = ${date} WHERE id = ${id}`;
+      // Если это часть чека, обновляем дату всего чека и всех его позиций
+      const res = await client.sql`SELECT receipt_id FROM expenses WHERE id = ${id}`;
+      const receiptId = res.rows[0]?.receipt_id;
+
+      if (receiptId) {
+        await client.sql`UPDATE expenses SET date = ${date} WHERE receipt_id = ${receiptId}`;
+        await client.sql`UPDATE receipts SET date = ${date} WHERE id = ${receiptId}`;
+      } else {
+        await client.sql`UPDATE expenses SET date = ${date} WHERE id = ${id}`;
+      }
     }
 
     return NextResponse.json({ success: true });
