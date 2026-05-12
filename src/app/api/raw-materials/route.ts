@@ -18,6 +18,7 @@ export async function GET() {
           isConsumed: bale.is_consumed,
           consumedDate: bale.consumed_date,
           weight: Number(bale.weight),
+          originalWeight: bale.original_weight ? Number(bale.original_weight) : null,
           status: bale.status || 'warehouse',
           comment: bale.comment || ''
         }))
@@ -45,8 +46,8 @@ export async function POST(request: Request) {
       `;
     } else if (type === 'bale') {
       await client.sql`
-        INSERT INTO raw_materials_bales (id, category_id, number, weight, received_date, is_consumed, status, comment)
-        VALUES (${data.id}, ${data.category_id}, ${data.number}, ${data.weight}, ${data.receivedDate}, false, 'warehouse', '')
+        INSERT INTO raw_materials_bales (id, category_id, number, weight, received_date, is_consumed, status, comment, original_weight)
+        VALUES (${data.id}, ${data.category_id}, ${data.number}, ${data.weight}, ${data.receivedDate}, false, 'warehouse', '', ${data.weight})
       `;
     }
 
@@ -58,20 +59,37 @@ export async function POST(request: Request) {
   }
 }
 
-// Обновить тюк (статус, комментарий, списание)
+// Обновить тюк (статус, комментарий, вес при возврате)
 export async function PATCH(request: Request) {
   const client = await db.connect();
   try {
     const body = await request.json();
-    const { id, status, comment, isConsumed, consumedDate } = body;
+    const { id, status, comment, isConsumed, consumedDate, newWeight } = body;
 
     // Обновляем статус
     if (status !== undefined) {
       await client.sql`UPDATE raw_materials_bales SET status = ${status} WHERE id = ${id}`;
-      // Если статус "finished" — помечаем как списанный
+
       if (status === 'finished') {
         const finishDate = consumedDate || new Date().toISOString().split('T')[0];
         await client.sql`UPDATE raw_materials_bales SET is_consumed = true, consumed_date = ${finishDate} WHERE id = ${id}`;
+      }
+
+      // Возврат на склад — сохраняем текущий вес как original_weight, ставим новый вес
+      if (status === 'returned') {
+        // Сначала сохраняем текущий вес как оригинальный (если ещё не сохранён)
+        await client.sql`
+          UPDATE raw_materials_bales 
+          SET original_weight = COALESCE(original_weight, weight),
+              status = 'warehouse',
+              is_consumed = false,
+              consumed_date = NULL
+          WHERE id = ${id}
+        `;
+        // Если передан новый вес — обновляем
+        if (newWeight !== undefined && newWeight !== null) {
+          await client.sql`UPDATE raw_materials_bales SET weight = ${newWeight} WHERE id = ${id}`;
+        }
       }
     }
 

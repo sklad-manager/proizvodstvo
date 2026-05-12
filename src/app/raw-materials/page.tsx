@@ -7,6 +7,7 @@ interface Bale {
   id: string;
   number: string;
   weight: number;
+  originalWeight: number | null;
   receivedDate: string;
   isConsumed: boolean;
   consumedDate?: string;
@@ -20,11 +21,12 @@ interface Category {
   bales: Bale[];
 }
 
-const STATUS_CONFIG = {
-  warehouse: { label: 'На складе', color: 'bg-blue-500', textColor: 'text-blue-500', bgLight: 'bg-blue-50' },
-  working: { label: 'В работе', color: 'bg-orange-500', textColor: 'text-orange-500', bgLight: 'bg-orange-50' },
-  finished: { label: 'Закончился', color: 'bg-slate-400', textColor: 'text-slate-400', bgLight: 'bg-slate-50' },
-};
+const STATUS_OPTIONS = [
+  { value: 'warehouse', label: 'На складе', emoji: '📦', color: 'bg-blue-500', light: 'bg-blue-50 text-blue-600 border-blue-200' },
+  { value: 'working', label: 'В работе', emoji: '⚙️', color: 'bg-orange-500', light: 'bg-orange-50 text-orange-600 border-orange-200' },
+  { value: 'returned', label: 'Вернули на склад', emoji: '↩️', color: 'bg-teal-500', light: 'bg-teal-50 text-teal-600 border-teal-200' },
+  { value: 'finished', label: 'Закончился', emoji: '✅', color: 'bg-slate-400', light: 'bg-slate-50 text-slate-500 border-slate-200' },
+];
 
 export default function RawMaterialsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -37,24 +39,23 @@ export default function RawMaterialsPage() {
   const [newBaleWeight, setNewBaleWeight] = useState('');
   const [editingComment, setEditingComment] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
+  const [returnWeightBaleId, setReturnWeightBaleId] = useState<string | null>(null);
+  const [returnWeight, setReturnWeight] = useState('');
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const loadData = async () => {
     const cloudSynced = localStorage.getItem('proizvodstvo_is_synced') === 'true';
     setIsCloudMode(cloudSynced);
-
     if (cloudSynced) {
       try {
         const res = await fetch('/api/raw-materials');
         const data = await res.json();
         if (Array.isArray(data)) setCategories(data);
-      } catch (e) { console.error("Ошибка загрузки из облака", e); }
+      } catch (e) { console.error(e); }
     } else {
       const saved = localStorage.getItem('proizvodstvo_raw_materials');
-      if (saved) {
-        try { setCategories(JSON.parse(saved)); } catch (e) { console.error(e); }
-      } else {
-        setCategories([{ id: 'cat1', name: 'Вискоза 1.7 dtex', bales: [] }]);
-      }
+      if (saved) { try { setCategories(JSON.parse(saved)); } catch (e) { console.error(e); } }
+      else { setCategories([{ id: 'cat1', name: 'Вискоза 1.7 dtex', bales: [] }]); }
     }
     setIsLoaded(true);
   };
@@ -69,9 +70,7 @@ export default function RawMaterialsPage() {
   }, []);
 
   useEffect(() => {
-    if (isLoaded && !isCloudMode) {
-      localStorage.setItem('proizvodstvo_raw_materials', JSON.stringify(categories));
-    }
+    if (isLoaded && !isCloudMode) localStorage.setItem('proizvodstvo_raw_materials', JSON.stringify(categories));
   }, [categories, isLoaded, isCloudMode]);
 
   const addCategory = async () => {
@@ -80,9 +79,7 @@ export default function RawMaterialsPage() {
     if (isCloudMode) {
       await fetch('/api/raw-materials', { method: 'POST', body: JSON.stringify({ type: 'category', ...newCat }) });
       loadData();
-    } else {
-      setCategories([...categories, newCat]);
-    }
+    } else { setCategories([...categories, newCat]); }
     setNewCategoryName('');
   };
 
@@ -91,18 +88,17 @@ export default function RawMaterialsPage() {
     if (isCloudMode) {
       await fetch(`/api/raw-materials?type=category&id=${id}`, { method: 'DELETE' });
       loadData();
-    } else {
-      setCategories(categories.filter(c => c.id !== id));
-    }
+    } else { setCategories(categories.filter(c => c.id !== id)); }
     if (openedCategoryId === id) setOpenedCategoryId(null);
   };
 
   const addBale = async (catId: string) => {
     if (!newBaleWeight) return;
+    const w = parseFloat(newBaleWeight);
     const newBale = {
       id: Date.now().toString(),
       number: newBaleNumber || ((categories.find(c => c.id === catId)?.bales.length || 0) + 1).toString(),
-      weight: parseFloat(newBaleWeight),
+      weight: w,
       receivedDate: selectedDate,
       category_id: catId
     };
@@ -110,56 +106,72 @@ export default function RawMaterialsPage() {
       await fetch('/api/raw-materials', { method: 'POST', body: JSON.stringify({ type: 'bale', ...newBale }) });
       loadData();
     } else {
-      setCategories(categories.map(cat => {
-        if (cat.id === catId) {
-          return { ...cat, bales: [{ ...newBale, isConsumed: false, status: 'warehouse' as const, comment: '' }, ...cat.bales] };
-        }
-        return cat;
-      }));
+      setCategories(categories.map(cat => cat.id === catId ? {
+        ...cat, bales: [{ ...newBale, isConsumed: false, status: 'warehouse' as const, comment: '', originalWeight: w }, ...cat.bales]
+      } : cat));
     }
-    setNewBaleNumber('');
-    setNewBaleWeight('');
+    setNewBaleNumber(''); setNewBaleWeight('');
   };
 
-  // Переключить тюк "в работу" — с проверкой предыдущего рабочего тюка
-  const setWorking = async (catId: string, baleId: string) => {
+  const changeStatus = async (catId: string, baleId: string, newStatus: string) => {
+    setOpenDropdown(null);
     const cat = categories.find(c => c.id === catId);
     if (!cat) return;
-    const currentWorking = cat.bales.find(b => b.status === 'working');
 
-    if (currentWorking && currentWorking.id !== baleId) {
-      const shouldFinish = confirm(`Тюк №${currentWorking.number} сейчас "В работе".\nПеревести его в "Закончился"?`);
-      if (shouldFinish) {
-        if (isCloudMode) {
-          await fetch('/api/raw-materials', { method: 'PATCH', body: JSON.stringify({ id: currentWorking.id, status: 'finished' }) });
-        } else {
-          setCategories(prev => prev.map(c => c.id === catId ? {
-            ...c, bales: c.bales.map(b => b.id === currentWorking.id ? { ...b, status: 'finished' as const, isConsumed: true, consumedDate: new Date().toISOString().split('T')[0] } : b)
-          } : c));
+    // Если ставим "В работе" — проверяем, нет ли другого в работе
+    if (newStatus === 'working') {
+      const currentWorking = cat.bales.find(b => b.status === 'working' && b.id !== baleId);
+      if (currentWorking) {
+        const shouldFinish = confirm(`Тюк №${currentWorking.number} сейчас "В работе".\nПеревести его в "Закончился"?`);
+        if (shouldFinish) {
+          if (isCloudMode) {
+            await fetch('/api/raw-materials', { method: 'PATCH', body: JSON.stringify({ id: currentWorking.id, status: 'finished' }) });
+          } else {
+            setCategories(prev => prev.map(c => c.id === catId ? {
+              ...c, bales: c.bales.map(b => b.id === currentWorking.id ? { ...b, status: 'finished' as const, isConsumed: true } : b)
+            } : c));
+          }
         }
       }
     }
 
+    // Если "Вернули на склад" — показываем поле ввода веса
+    if (newStatus === 'returned') {
+      const bale = cat.bales.find(b => b.id === baleId);
+      setReturnWeightBaleId(baleId);
+      setReturnWeight(bale?.weight?.toString() || '');
+      return;
+    }
+
     if (isCloudMode) {
-      await fetch('/api/raw-materials', { method: 'PATCH', body: JSON.stringify({ id: baleId, status: 'working' }) });
+      await fetch('/api/raw-materials', { method: 'PATCH', body: JSON.stringify({ id: baleId, status: newStatus }) });
       loadData();
     } else {
-      setCategories(prev => prev.map(c => c.id === catId ? {
-        ...c, bales: c.bales.map(b => b.id === baleId ? { ...b, status: 'working' as const } : b)
+      const consumedDate = new Date().toISOString().split('T')[0];
+      setCategories(categories.map(c => c.id === catId ? {
+        ...c, bales: c.bales.map(b => b.id === baleId ? {
+          ...b, status: newStatus as any,
+          ...(newStatus === 'finished' ? { isConsumed: true, consumedDate } : {})
+        } : b)
       } : c));
     }
   };
 
-  const setFinished = async (catId: string, baleId: string) => {
-    const consumedDate = new Date().toISOString().split('T')[0];
+  const confirmReturn = async (catId: string, baleId: string) => {
+    const newW = parseFloat(returnWeight);
+    if (isNaN(newW) || newW <= 0) { alert('Введите корректный вес'); return; }
+
     if (isCloudMode) {
-      await fetch('/api/raw-materials', { method: 'PATCH', body: JSON.stringify({ id: baleId, status: 'finished', consumedDate }) });
+      await fetch('/api/raw-materials', { method: 'PATCH', body: JSON.stringify({ id: baleId, status: 'returned', newWeight: newW }) });
       loadData();
     } else {
       setCategories(categories.map(c => c.id === catId ? {
-        ...c, bales: c.bales.map(b => b.id === baleId ? { ...b, status: 'finished' as const, isConsumed: true, consumedDate } : b)
+        ...c, bales: c.bales.map(b => b.id === baleId ? {
+          ...b, originalWeight: b.originalWeight || b.weight, weight: newW, status: 'warehouse' as const, isConsumed: false
+        } : b)
       } : c));
     }
+    setReturnWeightBaleId(null); setReturnWeight('');
   };
 
   const saveComment = async (baleId: string) => {
@@ -167,12 +179,9 @@ export default function RawMaterialsPage() {
       await fetch('/api/raw-materials', { method: 'PATCH', body: JSON.stringify({ id: baleId, comment: commentText }) });
       loadData();
     } else {
-      setCategories(categories.map(c => ({
-        ...c, bales: c.bales.map(b => b.id === baleId ? { ...b, comment: commentText } : b)
-      })));
+      setCategories(categories.map(c => ({ ...c, bales: c.bales.map(b => b.id === baleId ? { ...b, comment: commentText } : b) })));
     }
-    setEditingComment(null);
-    setCommentText('');
+    setEditingComment(null); setCommentText('');
   };
 
   const deleteBale = async (catId: string, baleId: string) => {
@@ -213,18 +222,12 @@ export default function RawMaterialsPage() {
           </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto items-center">
-           <Link href="/ai-assistant" className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-all shadow-sm shrink-0">
-             <i className="ni ni-bulb-61"></i>
-           </Link>
-           <input
-             type="text"
-             placeholder="Название папки..."
-             className="flex-1 md:flex-none px-4 py-2.5 rounded-xl border border-gray-200 focus:border-orange-400 outline-none text-sm min-w-0"
-             value={newCategoryName}
-             onChange={(e) => setNewCategoryName(e.target.value)}
-             onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }}
-           />
-           <button onClick={addCategory} className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-black transition-all active:scale-95">+</button>
+          <Link href="/ai-assistant" className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-all shadow-sm shrink-0">
+            <i className="ni ni-bulb-61"></i>
+          </Link>
+          <input type="text" placeholder="Название папки..." className="flex-1 md:flex-none px-4 py-2.5 rounded-xl border border-gray-200 focus:border-orange-400 outline-none text-sm min-w-0"
+            value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }} />
+          <button onClick={addCategory} className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-black transition-all active:scale-95">+</button>
         </div>
       </div>
 
@@ -233,13 +236,9 @@ export default function RawMaterialsPage() {
         {categories.map((cat) => {
           const stats = getStats(cat.bales);
           return (
-            <div
-              key={cat.id}
-              className={`group relative bg-white rounded-[2rem] shadow-xl border-2 transition-all duration-300 cursor-pointer overflow-hidden
-                ${openedCategoryId === cat.id ? 'border-orange-500 ring-4 ring-orange-50' : 'border-transparent hover:border-orange-100'}
-              `}
-              onClick={() => setOpenedCategoryId(cat.id)}
-            >
+            <div key={cat.id} className={`group relative bg-white rounded-[2rem] shadow-xl border-2 transition-all duration-300 cursor-pointer overflow-hidden
+              ${openedCategoryId === cat.id ? 'border-orange-500 ring-4 ring-orange-50' : 'border-transparent hover:border-orange-100'}`}
+              onClick={() => setOpenedCategoryId(cat.id)}>
               <div className="p-6 md:p-8">
                 <div className="flex items-start justify-between mb-4 md:mb-6">
                   <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-yellow-500 flex items-center justify-center text-white shadow-lg">
@@ -250,21 +249,15 @@ export default function RawMaterialsPage() {
                   </button>
                 </div>
                 <h3 className="text-lg md:text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">{cat.name}</h3>
-                <div className="flex flex-col gap-1">
-                  <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">На складе:</div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl md:text-3xl font-black text-orange-500">{stats.count}</span>
-                    <span className="text-xs font-bold text-slate-400 uppercase">тюков</span>
-                  </div>
-                  <div className="text-sm font-black text-slate-600 mt-1">
-                    Вес: <span className="text-orange-600">{stats.weight} кг</span>
-                  </div>
-                  {stats.working && (
-                    <div className="mt-2 px-3 py-1.5 bg-orange-50 rounded-lg text-[10px] font-black text-orange-500 uppercase">
-                      В работе: №{stats.working.number}
-                    </div>
-                  )}
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl md:text-3xl font-black text-orange-500">{stats.count}</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase">тюков · {stats.weight} кг</span>
                 </div>
+                {stats.working && (
+                  <div className="mt-2 px-3 py-1.5 bg-orange-50 rounded-lg text-[10px] font-black text-orange-500 uppercase">
+                    ⚙️ В работе: №{stats.working.number}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -273,101 +266,108 @@ export default function RawMaterialsPage() {
 
       {/* Модальное окно */}
       {openedCategoryId && (
-        <div className="fixed inset-0 z-999 flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/70 backdrop-blur-md animate-fade-in">
-          <div className="bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] shadow-2xl w-full max-w-5xl h-[92vh] md:h-[90vh] overflow-hidden flex flex-col animate-slide-up border border-white/20">
+        <div className="fixed inset-0 z-[999] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/70 backdrop-blur-md animate-fade-in" onClick={() => { setOpenedCategoryId(null); setOpenDropdown(null); }}>
+          <div className="bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] shadow-2xl w-full max-w-5xl h-[92vh] md:h-[90vh] overflow-hidden flex flex-col animate-slide-up" onClick={(e) => e.stopPropagation()}>
             {categories.filter(c => c.id === openedCategoryId).map(cat => {
               const stats = getStats(cat.bales);
-              // Сортировка: working → warehouse → finished
               const sortedBales = [...cat.bales].sort((a, b) => {
-                const order = { working: 0, warehouse: 1, finished: 2 };
-                return (order[a.status] || 1) - (order[b.status] || 1);
+                const order: Record<string, number> = { working: 0, warehouse: 1, finished: 2 };
+                return (order[a.status] ?? 1) - (order[b.status] ?? 1);
               });
 
               return (
                 <React.Fragment key={cat.id}>
-                  <div className="p-6 md:p-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white flex items-center justify-between shrink-0 shadow-xl">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 md:w-16 md:h-16 bg-white/10 rounded-2xl flex items-center justify-center text-orange-400">
-                        <i className="ni ni-folder-17 text-2xl md:text-3xl"></i>
+                  {/* Шапка */}
+                  <div className="p-5 md:p-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-orange-400">
+                        <i className="ni ni-folder-17 text-2xl"></i>
                       </div>
                       <div>
                         <h2 className="text-lg md:text-2xl font-black mb-0 uppercase tracking-tight">{cat.name}</h2>
-                        <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-tighter opacity-50">
-                          <span>В наличии: {stats.count}</span>
-                          <span className="w-1 h-1 bg-white/30 rounded-full"></span>
-                          <span>Вес: {stats.weight} кг</span>
-                        </div>
+                        <div className="text-[10px] font-black uppercase opacity-50">В наличии: {stats.count} · {stats.weight} кг</div>
                       </div>
                     </div>
-                    <button onClick={() => setOpenedCategoryId(null)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+                    <button onClick={() => { setOpenedCategoryId(null); setOpenDropdown(null); }} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
                       <i className="ni ni-fat-remove text-xl"></i>
                     </button>
                   </div>
 
-                  <div className="p-4 md:p-8 border-b border-gray-100 bg-gray-50 flex flex-wrap items-end gap-3 md:gap-4 shrink-0">
-                    <div className="flex-1 min-w-[80px]">
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">№ Тюка</label>
+                  {/* Форма добавления */}
+                  <div className="p-4 md:p-6 border-b border-gray-100 bg-gray-50 flex flex-wrap items-end gap-3 shrink-0">
+                    <div className="flex-1 min-w-[70px]">
+                      <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">№</label>
                       <input type="text" placeholder="№" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-orange-400 text-sm" value={newBaleNumber} onChange={(e) => setNewBaleNumber(e.target.value)} />
                     </div>
-                    <div className="flex-1 min-w-[80px]">
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Вес (кг)</label>
+                    <div className="flex-1 min-w-[70px]">
+                      <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Вес (кг)</label>
                       <input type="number" placeholder="Вес" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-orange-400 text-sm" value={newBaleWeight} onChange={(e) => setNewBaleWeight(e.target.value)} />
                     </div>
-                    <button onClick={() => addBale(cat.id)} className="h-[42px] px-6 rounded-xl bg-orange-500 text-white font-black uppercase text-xs tracking-widest hover:bg-orange-600 shadow-lg shadow-orange-100 w-full md:w-auto transition-all active:scale-95">Принять</button>
+                    <button onClick={() => addBale(cat.id)} className="h-[42px] px-6 rounded-xl bg-orange-500 text-white font-black uppercase text-xs hover:bg-orange-600 shadow-lg w-full md:w-auto transition-all active:scale-95">Принять</button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto">
+                  {/* Список тюков */}
+                  <div className="flex-1 overflow-y-auto" onClick={() => setOpenDropdown(null)}>
                     {sortedBales.map((bale) => {
-                      const st = STATUS_CONFIG[bale.status] || STATUS_CONFIG.warehouse;
-                      const isEditing = editingComment === bale.id;
+                      const currentStatus = STATUS_OPTIONS.find(s => s.value === bale.status) || STATUS_OPTIONS[0];
+                      const isDropdownOpen = openDropdown === bale.id;
+                      const isEditingComment = editingComment === bale.id;
+                      const isReturning = returnWeightBaleId === bale.id;
+                      const weightChanged = bale.originalWeight && bale.originalWeight !== bale.weight;
 
                       return (
-                        <div key={bale.id} className={`border-b border-gray-50 transition-all ${bale.status === 'finished' ? 'opacity-40 bg-gray-50/50' : 'hover:bg-orange-50/20'}`}>
-                          <div className="flex items-center gap-3 p-4 md:px-8 md:py-5">
-                            {/* Номер + вес */}
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className={`w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 ${st.color}`}>
-                                {bale.number}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-black text-slate-800 text-sm">{bale.weight} <span className="text-[10px] text-slate-400">кг</span></div>
-                                <div className="text-[10px] text-slate-300 font-bold">{new Date(bale.receivedDate).toLocaleDateString('ru-RU')}</div>
-                              </div>
+                        <div key={bale.id} className={`border-b border-gray-50 transition-all ${bale.status === 'finished' ? 'opacity-35 bg-gray-50/50' : ''}`}>
+                          <div className="flex items-center gap-2 md:gap-3 p-3 md:px-6 md:py-4">
+                            {/* Номер */}
+                            <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 ${currentStatus.color}`}>
+                              {bale.number}
                             </div>
 
-                            {/* Статус */}
-                            <div className="flex items-center gap-2 shrink-0">
-                              {bale.status === 'warehouse' && (
-                                <button
-                                  onClick={() => setWorking(cat.id, bale.id)}
-                                  className="px-3 md:px-4 py-2 rounded-xl bg-blue-50 text-blue-500 text-[9px] md:text-[10px] font-black uppercase hover:bg-orange-500 hover:text-white transition-all"
-                                >
-                                  На складе
-                                </button>
-                              )}
-                              {bale.status === 'working' && (
-                                <button
-                                  onClick={() => setFinished(cat.id, bale.id)}
-                                  className="px-3 md:px-4 py-2 rounded-xl bg-orange-500 text-white text-[9px] md:text-[10px] font-black uppercase shadow-md hover:bg-red-500 transition-all animate-pulse"
-                                >
-                                  В работе
-                                </button>
-                              )}
-                              {bale.status === 'finished' && (
-                                <span className="px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-[9px] font-black uppercase">
-                                  Закончился
-                                </span>
+                            {/* Вес + дата */}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-black text-slate-800 text-sm flex items-center gap-1.5 flex-wrap">
+                                {bale.weight} <span className="text-[10px] text-slate-400">кг</span>
+                                {weightChanged && (
+                                  <span className="text-[9px] text-teal-500 font-bold bg-teal-50 px-1.5 py-0.5 rounded">
+                                    было {bale.originalWeight} кг
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-300 font-bold">{new Date(bale.receivedDate).toLocaleDateString('ru-RU')}</div>
+                            </div>
+
+                            {/* Выпадающий статус */}
+                            <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => setOpenDropdown(isDropdownOpen ? null : bale.id)}
+                                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl border text-[9px] md:text-[10px] font-black uppercase transition-all flex items-center gap-1.5 ${currentStatus.light}`}
+                              >
+                                <span>{currentStatus.emoji}</span>
+                                <span className="hidden md:inline">{currentStatus.label}</span>
+                                <span className="text-[8px] opacity-50">▼</span>
+                              </button>
+
+                              {isDropdownOpen && bale.status !== 'finished' && (
+                                <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 min-w-[180px] py-1 overflow-hidden">
+                                  {STATUS_OPTIONS.filter(s => s.value !== bale.status).map(opt => (
+                                    <button
+                                      key={opt.value}
+                                      onClick={() => changeStatus(cat.id, bale.id, opt.value)}
+                                      className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                                    >
+                                      <span className="text-base">{opt.emoji}</span>
+                                      <span className="text-xs font-bold text-slate-700">{opt.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
                               )}
                             </div>
 
-                            {/* Комментарий (иконка) */}
+                            {/* Комментарий */}
                             <button
-                              onClick={() => { setEditingComment(isEditing ? null : bale.id); setCommentText(bale.comment || ''); }}
-                              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-all ${bale.comment ? 'bg-amber-50 text-amber-500' : 'bg-gray-50 text-slate-200 hover:text-slate-400'}`}
-                              title="Комментарий"
-                            >
-                              💬
-                            </button>
+                              onClick={(e) => { e.stopPropagation(); setEditingComment(isEditingComment ? null : bale.id); setCommentText(bale.comment || ''); }}
+                              className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center shrink-0 text-sm transition-all ${bale.comment ? 'bg-amber-50 text-amber-500' : 'bg-gray-50 text-slate-200 hover:text-slate-400'}`}
+                            >💬</button>
 
                             {/* Удалить */}
                             <button onClick={() => deleteBale(cat.id, bale.id)} className="text-slate-200 hover:text-red-500 transition-colors shrink-0">
@@ -375,25 +375,27 @@ export default function RawMaterialsPage() {
                             </button>
                           </div>
 
-                          {/* Поле комментария */}
-                          {isEditing && (
-                            <div className="px-4 md:px-8 pb-4 flex gap-2">
-                              <input
-                                type="text"
-                                placeholder="Напишите комментарий..."
-                                className="flex-1 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50/50 outline-none text-sm focus:border-amber-400"
-                                value={commentText}
-                                onChange={(e) => setCommentText(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') saveComment(bale.id); }}
-                                autoFocus
-                              />
-                              <button onClick={() => saveComment(bale.id)} className="px-4 py-2 rounded-lg bg-amber-500 text-white font-bold text-xs">OK</button>
+                          {/* Ввод нового веса при возврате */}
+                          {isReturning && (
+                            <div className="px-4 md:px-6 pb-3 flex gap-2 items-center bg-teal-50/50">
+                              <span className="text-xs font-bold text-teal-600 shrink-0">↩️ Новый вес:</span>
+                              <input type="number" className="flex-1 px-3 py-2 rounded-lg border border-teal-200 bg-white outline-none text-sm font-bold focus:border-teal-400"
+                                value={returnWeight} onChange={(e) => setReturnWeight(e.target.value)} autoFocus placeholder="кг" />
+                              <button onClick={() => confirmReturn(cat.id, bale.id)} className="px-4 py-2 rounded-lg bg-teal-500 text-white font-bold text-xs">OK</button>
+                              <button onClick={() => setReturnWeightBaleId(null)} className="px-3 py-2 rounded-lg bg-gray-100 text-slate-400 font-bold text-xs">✕</button>
                             </div>
                           )}
 
-                          {/* Показать существующий комментарий */}
-                          {!isEditing && bale.comment && (
-                            <div className="px-4 md:px-8 pb-3 -mt-1">
+                          {/* Комментарий */}
+                          {isEditingComment && (
+                            <div className="px-4 md:px-6 pb-3 flex gap-2">
+                              <input type="text" placeholder="Комментарий..." className="flex-1 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50/50 outline-none text-sm focus:border-amber-400"
+                                value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') saveComment(bale.id); }} autoFocus />
+                              <button onClick={() => saveComment(bale.id)} className="px-4 py-2 rounded-lg bg-amber-500 text-white font-bold text-xs">OK</button>
+                            </div>
+                          )}
+                          {!isEditingComment && bale.comment && (
+                            <div className="px-4 md:px-6 pb-2 -mt-1">
                               <span className="text-[11px] text-amber-600 italic">💬 {bale.comment}</span>
                             </div>
                           )}

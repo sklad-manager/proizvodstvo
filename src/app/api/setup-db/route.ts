@@ -57,9 +57,10 @@ export async function GET() {
       );
     `;
 
-    // Миграция тюков: добавляем status и comment
+    // Миграция тюков: добавляем status, comment, original_weight
     await client.sql`ALTER TABLE raw_materials_bales ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'warehouse'`;
     await client.sql`ALTER TABLE raw_materials_bales ADD COLUMN IF NOT EXISTS comment TEXT DEFAULT ''`;
+    await client.sql`ALTER TABLE raw_materials_bales ADD COLUMN IF NOT EXISTS original_weight DECIMAL(10,2)`;
 
     // 5. Расходы и доходы
     await client.sql`
