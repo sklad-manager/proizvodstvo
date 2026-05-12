@@ -15,10 +15,22 @@ async function generateReceiptNumber(client: any, manualNum?: number): Promise<s
     return `ЧЕК-${y}-${m}-${d}-${manualNum.toString().padStart(3, '0')}`;
   }
 
+  // Берём максимальный номер за месяц, чтобы не было коллизий
   const prefix = `ЧЕК-${y}-${m}`;
-  const result = await client.sql`SELECT COUNT(*) as cnt FROM receipts WHERE receipt_number LIKE ${prefix + '%'}`;
-  const seq = (parseInt(result.rows[0].cnt) + 1).toString().padStart(3, '0');
-  return `ЧЕК-${y}-${m}-${d}-${seq}`;
+  const result = await client.sql`SELECT receipt_number FROM receipts WHERE receipt_number LIKE ${prefix + '%'} ORDER BY receipt_number DESC LIMIT 1`;
+  let seq = 1;
+  if (result.rows.length > 0) {
+    const last = result.rows[0].receipt_number;
+    const lastNum = parseInt(last.split('-').pop() || '0');
+    seq = lastNum + 1;
+  }
+  return `ЧЕК-${y}-${m}-${d}-${seq.toString().padStart(3, '0')}`;
+}
+
+// Проверка существования номера чека
+async function receiptNumberExists(client: any, num: string): Promise<boolean> {
+  const r = await client.sql`SELECT id FROM receipts WHERE receipt_number = ${num}`;
+  return (r.rowCount ?? 0) > 0;
 }
 
 async function callGemini(prompt: string, imageBase64?: string) {
@@ -146,7 +158,12 @@ export async function POST(request: Request) {
         // Обновляем номер чека, если ИИ нашёл цифру
         let receiptNumber = receipt.receipt_number;
         if (parsed.receiptNum) {
-          receiptNumber = await generateReceiptNumber(client, parsed.receiptNum);
+          const newNum = await generateReceiptNumber(client, parsed.receiptNum);
+          if (await receiptNumberExists(client, newNum)) {
+            await editTg(token, chatId, msgId, `⚠️ Внимание! Чек с номером <b>${newNum}</b> уже существует в базе.\nПроверьте — возможно этот чек уже был добавлен.`);
+            return NextResponse.json({ ok: true });
+          }
+          receiptNumber = newNum;
           await client.sql`UPDATE receipts SET receipt_number = ${receiptNumber} WHERE id = ${rid}`;
         }
 
