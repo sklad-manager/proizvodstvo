@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import FinanceCalendar from '@/components/FinanceCalendar';
 
 interface FinRecord {
   id: string;
@@ -44,6 +45,28 @@ export default function ExpensesPage() {
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [expandedReceipts, setExpandedReceipts] = useState<Set<string>>(new Set());
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const changeMonth = (delta: number) => {
+    let m = calMonth + delta, y = calYear;
+    if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+    setCalMonth(m); setCalYear(y); setSelectedDate(null);
+  };
+
+  // Суммы по дням для календаря
+  const dayTotals = useMemo(() => {
+    const map: Record<string, { expense: number; income: number }> = {};
+    records.filter(r => r.is_confirmed).forEach(r => {
+      const d = r.date?.split('T')[0];
+      if (!d) return;
+      if (!map[d]) map[d] = { expense: 0, income: 0 };
+      if (r.type === 'income') map[d].income += r.amount;
+      else map[d].expense += r.amount;
+    });
+    return map;
+  }, [records]);
 
   const loadData = async () => {
     try {
@@ -96,8 +119,7 @@ export default function ExpensesPage() {
 
   const exportMonth = async () => {
     setIsExporting(true);
-    const now = new Date();
-    const month = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    const month = `${calYear}-${(calMonth + 1).toString().padStart(2, '0')}`;
     try {
       const res = await fetch(`/api/export?month=${month}`);
       if (res.ok) {
@@ -128,11 +150,14 @@ export default function ExpensesPage() {
   const filtered = confirmed.filter(r => {
     if (filterType !== 'all' && r.type !== filterType) return false;
     if (filterPay !== 'all' && r.payment_method !== filterPay) return false;
+    if (selectedDate && r.date?.split('T')[0] !== selectedDate) return false;
     return true;
   });
 
-  const totalIncome = confirmed.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
-  const totalExpense = confirmed.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
+  // Итоги — по выбранной дате или по всем
+  const scopeRecords = selectedDate ? confirmed.filter(r => r.date?.split('T')[0] === selectedDate) : confirmed;
+  const totalIncome = scopeRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+  const totalExpense = scopeRecords.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
   const balance = totalIncome - totalExpense;
 
   if (!isLoaded) return <div className="p-10 text-center font-black text-slate-300 uppercase tracking-widest animate-pulse">Загрузка финансов...</div>;
@@ -168,10 +193,24 @@ export default function ExpensesPage() {
         </div>
       </div>
 
+      {/* Календарь */}
+      <FinanceCalendar
+        year={calYear} month={calMonth}
+        selectedDate={selectedDate}
+        dayTotals={dayTotals}
+        onSelectDate={(d) => { setSelectedDate(d); if (d) setNewDate(d); }}
+        onChangeMonth={changeMonth}
+      />
+
       {/* Финансовый пульс */}
+      {selectedDate && (
+        <div className="px-3 py-2 bg-slate-800 text-white rounded-2xl text-center text-xs font-black uppercase tracking-widest">
+          📅 {new Date(selectedDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', weekday: 'short' })}
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3 md:gap-6">
         <div className="bg-white p-5 md:p-8 rounded-[2rem] shadow-xl border border-gray-50 relative overflow-hidden">
-          <div className="text-[9px] md:text-[10px] font-black uppercase text-emerald-400 tracking-widest mb-1 md:mb-2">Доходы</div>
+          <div className="text-[9px] md:text-[10px] font-black uppercase text-emerald-400 tracking-widest mb-1 md:mb-2">{selectedDate ? 'Приход' : 'Доходы'}</div>
           <div className="text-lg md:text-3xl font-black text-emerald-500">+{totalIncome.toLocaleString()}</div>
           <div className="text-[10px] md:text-xs font-bold text-slate-300 mt-1">грн</div>
           <div className="absolute bottom-0 left-0 h-1 bg-emerald-500 w-full"></div>
@@ -259,7 +298,7 @@ export default function ExpensesPage() {
         <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl border-2 border-slate-100">
           <div className="flex gap-2 mb-6">
             <button onClick={() => setFormType('expense')} className={`flex-1 py-3 rounded-xl font-black text-xs transition-all ${formType === 'expense' ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Расход</button>
-            <button onClick={() => setFormType('income')} className={`flex-1 py-3 rounded-xl font-black text-xs transition-all ${formType === 'income' ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Доход</button>
+            <button onClick={() => setFormType('income')} className={`flex-1 py-3 rounded-xl font-black text-xs transition-all ${formType === 'income' ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Деньги под отчёт</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
