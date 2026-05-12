@@ -17,6 +17,7 @@ interface FinRecord {
   receipt_id?: string;
   receipt_number?: string;
   photo_url?: string;
+  comment?: string;
 }
 
 const CATEGORIES: Record<string, { name: string; color: string }> = {
@@ -48,6 +49,18 @@ export default function ExpensesPage() {
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editComment, setEditComment] = useState('');
+  const [editDate, setEditDate] = useState('');
+
+  const startEditing = (rec: FinRecord) => {
+    setEditingId(rec.id); setEditComment(rec.comment || ''); setEditDate(rec.date?.split('T')[0] || '');
+  };
+
+  const saveEdit = async (id: string) => {
+    await fetch('/api/expenses', { method: 'PATCH', body: JSON.stringify({ id, comment: editComment, date: editDate }) });
+    setEditingId(null); loadData();
+  };
 
   const changeMonth = (delta: number) => {
     let m = calMonth + delta, y = calYear;
@@ -441,37 +454,64 @@ export default function ExpensesPage() {
               );
             }
 
-            // Одиночная запись (без чека или чек с 1 позицией)
+            // Одиночная запись
             const rec = group.items[0];
             const cat = CATEGORIES[rec.category] || CATEGORIES.other;
             const isIncome = rec.type === 'income';
+            const isEditing = editingId === rec.id;
             return (
-              <div key={rec.id} className={`bg-white p-3.5 md:p-5 rounded-2xl shadow-sm border-l-[6px] transition-all hover:shadow-md flex items-center justify-between gap-2 ${isIncome ? 'border-emerald-500' : 'border-rose-400'}`}>
-                <div className="flex items-center gap-2.5 md:gap-4 min-w-0">
-                  {rec.photo_url && (
-                    <button onClick={() => setPreviewPhoto(rec.photo_url!)} className="w-9 h-9 md:w-10 md:h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 hover:ring-2 ring-blue-400 transition-all">
-                      <img src={rec.photo_url} alt="чек" className="w-full h-full object-cover" />
-                    </button>
-                  )}
-                  <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white text-sm shrink-0 ${cat.color} ${rec.photo_url ? 'hidden md:flex' : ''}`}>
-                    {isIncome ? '💰' : '📉'}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-black text-slate-800 text-sm leading-tight truncate">{rec.description}</div>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                      {rec.receipt_number && <span className="px-1.5 py-0.5 bg-blue-50 rounded text-[8px] font-black text-blue-500">{rec.receipt_number}</span>}
-                      <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-600">{rec.payment_method || 'Ф1'}</span>
-                      <span className="text-[10px] font-bold text-slate-400">{cat.name}</span>
-                      <span className="text-[10px] text-slate-300">{new Date(rec.date).toLocaleDateString('ru-RU')}</span>
+              <div key={rec.id} className={`bg-white rounded-2xl shadow-sm border-l-[6px] transition-all hover:shadow-md overflow-hidden ${isIncome ? 'border-emerald-500' : 'border-rose-400'}`}>
+                <div className="p-3.5 md:p-5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 md:gap-4 min-w-0" onClick={() => startEditing(rec)} style={{ cursor: 'pointer' }}>
+                    {rec.photo_url && (
+                      <button onClick={(e) => { e.stopPropagation(); setPreviewPhoto(rec.photo_url!); }} className="w-9 h-9 md:w-10 md:h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 hover:ring-2 ring-blue-400 transition-all">
+                        <img src={rec.photo_url} alt="чек" className="w-full h-full object-cover" />
+                      </button>
+                    )}
+                    <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white text-sm shrink-0 ${cat.color} ${rec.photo_url ? 'hidden md:flex' : ''}`}>
+                      {isIncome ? '💰' : '📉'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-black text-slate-800 text-sm leading-tight truncate">
+                        {isIncome ? 'Деньги под отчёт' : rec.description}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                        {rec.receipt_number && <span className="px-1.5 py-0.5 bg-blue-50 rounded text-[8px] font-black text-blue-500">{rec.receipt_number}</span>}
+                        {!isIncome && <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-600">{rec.payment_method || 'Ф1'}</span>}
+                        {!isIncome && <span className="text-[10px] font-bold text-slate-400">{cat.name}</span>}
+                        <span className="text-[10px] text-slate-300">{new Date(rec.date).toLocaleDateString('ru-RU')}</span>
+                      </div>
+                      {rec.comment && !isEditing && (
+                        <div className="text-[10px] text-slate-400 mt-1 italic">💬 {rec.comment}</div>
+                      )}
                     </div>
                   </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-sm md:text-lg font-black ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {isIncome ? '+' : '-'}{rec.amount.toLocaleString()} <span className="text-[9px]">грн</span>
+                    </span>
+                    <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gray-50 text-slate-200 hover:text-red-500 transition-colors flex items-center justify-center text-sm">✕</button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-sm md:text-lg font-black ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {isIncome ? '+' : '-'}{rec.amount.toLocaleString()} <span className="text-[9px]">грн</span>
-                  </span>
-                  <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gray-50 text-slate-200 hover:text-red-500 transition-colors flex items-center justify-center text-sm">✕</button>
-                </div>
+                {/* Панель редактирования */}
+                {isEditing && (
+                  <div className="px-4 pb-4 flex flex-col gap-2 border-t border-gray-50 bg-slate-50/50 pt-3">
+                    <div className="flex gap-2">
+                      <div className="flex flex-col gap-1 flex-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase">Дата</label>
+                        <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-bold outline-none" />
+                      </div>
+                      <div className="flex flex-col gap-1 flex-[2]">
+                        <label className="text-[9px] font-black text-slate-400 uppercase">Комментарий</label>
+                        <input type="text" placeholder="Добавить заметку..." value={editComment} onChange={e => setEditComment(e.target.value)} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm outline-none" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEdit(rec.id)} className="flex-1 py-2 rounded-lg bg-slate-800 text-white text-xs font-black">💾 Сохранить</button>
+                      <button onClick={() => setEditingId(null)} className="px-4 py-2 rounded-lg bg-gray-100 text-slate-400 text-xs font-black">Отмена</button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           });

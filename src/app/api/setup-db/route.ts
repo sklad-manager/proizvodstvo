@@ -82,6 +82,7 @@ export async function GET() {
     await client.sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'expense'`;
     await client.sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS is_confirmed BOOLEAN DEFAULT true`;
     await client.sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_id TEXT`;
+    await client.sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS comment TEXT DEFAULT ''`;
 
     // 6. Таблица чеков (фото)
     await client.sql`

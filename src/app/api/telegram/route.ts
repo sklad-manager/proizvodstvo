@@ -285,7 +285,7 @@ export async function POST(request: Request) {
       }
 
       // Обычный текст — распознаём как трату/доход
-      const prompt = `Проанализируй текст и определи финансовую операцию: "${userText}"\nВерни ТОЛЬКО JSON: {"type":"expense" или "income","amount":число,"description":"описание","category":"materials/maintenance/salary/rent/small/sales/other","paymentMethod":"Ф1/Ф2/ФОП"}`;
+      const prompt = `Проанализируй текст и определи финансовую операцию: "${userText}"\nЕсли в тексте говорится о получении денег, поступлении, пополнении — это income (деньги под отчёт).\nЕсли трата/покупка — это expense.\nВерни ТОЛЬКО JSON: {"type":"expense" или "income","amount":число,"description":"описание","category":"materials/maintenance/salary/rent/small/other","paymentMethod":"Ф1/Ф2/ФОП"}`;
       const aiText = await callGemini(prompt);
       const jsonMatch = aiText.match(/\{[\s\S]*?\}/);
       if (!jsonMatch) { await sendTg(token, chatId, '❌ Не понял. Попробуйте иначе.'); return NextResponse.json({ ok: true }); }
@@ -293,14 +293,22 @@ export async function POST(request: Request) {
       const parsed = JSON.parse(jsonMatch[0]);
       const expenseId = Date.now().toString();
       const today = new Date().toISOString().split('T')[0];
-      await client.sql`INSERT INTO expenses (id,category,description,amount,date,status,payment_method,type,is_confirmed) VALUES (${expenseId},${parsed.category||'other'},${parsed.description},${parsed.amount},${today},'paid',${parsed.paymentMethod||'Ф1'},${parsed.type||'expense'},false)`;
 
-      const catNames: Record<string, string> = { materials:'Сырье', maintenance:'Ремонт', salary:'Зарплаты', rent:'Аренда', small:'Мелкие', sales:'Продажа', other:'Прочее' };
-      const emoji = parsed.type === 'income' ? '💰' : '📉';
-      await sendTg(token, chatId,
-        `${emoji} <b>${parsed.type === 'income' ? 'ДОХОД' : 'РАСХОД'}</b>\n📝 ${parsed.description}\n💵 ${parsed.amount} грн\n📂 ${catNames[parsed.category]||'Прочее'}\n💳 ${parsed.paymentMethod||'Ф1'}\n\nЗаписать?`,
-        { inline_keyboard: [[ { text: '✅ Да', callback_data: `confirm_${expenseId}` }, { text: '❌ Нет', callback_data: `cancel_${expenseId}` } ]] }
-      );
+      // Доход = деньги под отчёт, без категории
+      if (parsed.type === 'income') {
+        await client.sql`INSERT INTO expenses (id,category,description,amount,date,status,payment_method,type,is_confirmed) VALUES (${expenseId},'other','Деньги под отчёт',${parsed.amount},${today},'paid','—','income',false)`;
+        await sendTg(token, chatId,
+          `💰 <b>ДЕНЬГИ ПОД ОТЧЁТ</b>\n💵 ${parsed.amount} грн\n\nЗаписать?`,
+          { inline_keyboard: [[ { text: '✅ Да', callback_data: `confirm_${expenseId}` }, { text: '❌ Нет', callback_data: `cancel_${expenseId}` } ]] }
+        );
+      } else {
+        await client.sql`INSERT INTO expenses (id,category,description,amount,date,status,payment_method,type,is_confirmed) VALUES (${expenseId},${parsed.category||'other'},${parsed.description},${parsed.amount},${today},'paid',${parsed.paymentMethod||'Ф1'},'expense',false)`;
+        const catNames: Record<string, string> = { materials:'Сырье', maintenance:'Ремонт', salary:'Зарплаты', rent:'Аренда', small:'Мелкие', other:'Прочее' };
+        await sendTg(token, chatId,
+          `📉 <b>РАСХОД</b>\n📝 ${parsed.description}\n💵 ${parsed.amount} грн\n📂 ${catNames[parsed.category]||'Прочее'}\n💳 ${parsed.paymentMethod||'Ф1'}\n\nЗаписать?`,
+          { inline_keyboard: [[ { text: '✅ Да', callback_data: `confirm_${expenseId}` }, { text: '❌ Нет', callback_data: `cancel_${expenseId}` } ]] }
+        );
+      }
     } catch (e: any) {
       await sendTg(token, chatId, `⚠️ Ошибка: ${e.message}`);
     } finally { client.release(); }

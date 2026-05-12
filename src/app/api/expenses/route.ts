@@ -45,18 +45,24 @@ export async function POST(request: Request) {
   }
 }
 
-// Изменить статус или подтвердить запись
+// Изменить запись
 export async function PATCH(request: Request) {
   const client = await db.connect();
   try {
     const body = await request.json();
-    const { id, status, isConfirmed } = body;
+    const { id, status, isConfirmed, comment, date } = body;
 
     if (isConfirmed !== undefined) {
       await client.sql`UPDATE expenses SET is_confirmed = ${isConfirmed} WHERE id = ${id}`;
     }
     if (status !== undefined) {
       await client.sql`UPDATE expenses SET status = ${status} WHERE id = ${id}`;
+    }
+    if (comment !== undefined) {
+      await client.sql`UPDATE expenses SET comment = ${comment} WHERE id = ${id}`;
+    }
+    if (date !== undefined) {
+      await client.sql`UPDATE expenses SET date = ${date} WHERE id = ${id}`;
     }
 
     return NextResponse.json({ success: true });
