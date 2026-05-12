@@ -43,6 +43,7 @@ export default function ExpensesPage() {
   const [filterPay, setFilterPay] = useState('all');
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [expandedReceipts, setExpandedReceipts] = useState<Set<string>>(new Set());
 
   const loadData = async () => {
     try {
@@ -316,39 +317,126 @@ export default function ExpensesPage() {
             <p className="font-black uppercase text-xs text-slate-300 tracking-widest">Нет записей</p>
           </div>
         )}
-        {filtered.map(rec => {
-          const cat = CATEGORIES[rec.category] || CATEGORIES.other;
-          const isIncome = rec.type === 'income';
-          return (
-            <div key={rec.id} className={`bg-white p-3.5 md:p-5 rounded-2xl shadow-sm border-l-[6px] transition-all hover:shadow-md flex items-center justify-between gap-2 ${isIncome ? 'border-emerald-500' : 'border-rose-400'}`}>
-              <div className="flex items-center gap-2.5 md:gap-4 min-w-0">
-                {rec.photo_url && (
-                  <button onClick={() => setPreviewPhoto(rec.photo_url!)} className="w-9 h-9 md:w-10 md:h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 hover:ring-2 ring-blue-400 transition-all">
-                    <img src={rec.photo_url} alt="чек" className="w-full h-full object-cover" />
-                  </button>
-                )}
-                <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white text-sm shrink-0 ${cat.color} ${rec.photo_url ? 'hidden md:flex' : ''}`}>
-                  {isIncome ? '💰' : '📉'}
+        {(() => {
+          // Группируем по receipt_id
+          const groups: { receiptId: string | null; items: FinRecord[]; photoUrl?: string; receiptNumber?: string }[] = [];
+          const byReceipt: Record<string, FinRecord[]> = {};
+          const standalone: FinRecord[] = [];
+          filtered.forEach(r => {
+            if (r.receipt_id) {
+              if (!byReceipt[r.receipt_id]) byReceipt[r.receipt_id] = [];
+              byReceipt[r.receipt_id].push(r);
+            } else {
+              standalone.push(r);
+            }
+          });
+          Object.entries(byReceipt).forEach(([rid, items]) => {
+            groups.push({ receiptId: rid, items, photoUrl: items[0]?.photo_url, receiptNumber: items[0]?.receipt_number });
+          });
+          standalone.forEach(r => groups.push({ receiptId: null, items: [r] }));
+
+          // Сортируем по дате
+          groups.sort((a, b) => new Date(b.items[0].date).getTime() - new Date(a.items[0].date).getTime());
+
+          return groups.map((group, gi) => {
+            // Чек с несколькими позициями — свёрнутый
+            if (group.receiptId && group.items.length > 1) {
+              const total = group.items.reduce((s, r) => s + r.amount, 0);
+              const isExpanded = expandedReceipts.has(group.receiptId);
+              const toggleExpand = () => {
+                setExpandedReceipts(prev => {
+                  const next = new Set(prev);
+                  if (next.has(group.receiptId!)) next.delete(group.receiptId!); else next.add(group.receiptId!);
+                  return next;
+                });
+              };
+              return (
+                <div key={gi} className="bg-white rounded-2xl shadow-sm border-l-[6px] border-rose-400 overflow-hidden">
+                  {/* Свёрнутая шапка чека */}
+                  <div className="p-3.5 md:p-4 flex items-center justify-between gap-2 cursor-pointer hover:bg-slate-50/50 transition-all" onClick={toggleExpand}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {group.photoUrl && (
+                        <button onClick={(e) => { e.stopPropagation(); setPreviewPhoto(group.photoUrl!); }} className="w-9 h-9 md:w-10 md:h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 hover:ring-2 ring-blue-400 transition-all">
+                          <img src={group.photoUrl} alt="чек" className="w-full h-full object-cover" />
+                        </button>
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-slate-800 text-sm">🧾 {group.receiptNumber || 'Чек'}</span>
+                          <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-500">{group.items.length} поз.</span>
+                        </div>
+                        <div className="text-[10px] text-slate-300 mt-0.5">
+                          {group.items[0]?.payment_method || 'Ф1'} · {new Date(group.items[0].date).toLocaleDateString('ru-RU')}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm md:text-lg font-black text-rose-500">-{total.toLocaleString()} <span className="text-[9px]">грн</span></span>
+                      <span className={`text-slate-300 text-lg transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                    </div>
+                  </div>
+                  {/* Развёрнутые позиции */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-50">
+                      {group.items.map(rec => {
+                        const cat = CATEGORIES[rec.category] || CATEGORIES.other;
+                        return (
+                          <div key={rec.id} className="px-4 md:px-6 py-2.5 flex items-center justify-between gap-2 border-b border-gray-50 last:border-0 bg-slate-50/30">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={`w-6 h-6 rounded-md flex items-center justify-center text-white text-[10px] shrink-0 ${cat.color}`}>📉</div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-bold text-slate-600 truncate">{rec.description}</div>
+                                <div className="text-[9px] text-slate-400">{cat.name}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-sm font-black text-rose-400">-{rec.amount.toLocaleString()}</span>
+                              <button onClick={() => deleteRecord(rec.id)} className="w-6 h-6 rounded bg-gray-50 text-slate-200 hover:text-red-500 transition-colors flex items-center justify-center text-xs">✕</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="min-w-0">
-                  <div className="font-black text-slate-800 text-sm leading-tight truncate">{rec.description}</div>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                    {rec.receipt_number && <span className="px-1.5 py-0.5 bg-blue-50 rounded text-[8px] font-black text-blue-500">{rec.receipt_number}</span>}
-                    <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-600">{rec.payment_method || 'Ф1'}</span>
-                    <span className="text-[10px] font-bold text-slate-400">{cat.name}</span>
-                    <span className="text-[10px] text-slate-300">{new Date(rec.date).toLocaleDateString('ru-RU')}</span>
+              );
+            }
+
+            // Одиночная запись (без чека или чек с 1 позицией)
+            const rec = group.items[0];
+            const cat = CATEGORIES[rec.category] || CATEGORIES.other;
+            const isIncome = rec.type === 'income';
+            return (
+              <div key={rec.id} className={`bg-white p-3.5 md:p-5 rounded-2xl shadow-sm border-l-[6px] transition-all hover:shadow-md flex items-center justify-between gap-2 ${isIncome ? 'border-emerald-500' : 'border-rose-400'}`}>
+                <div className="flex items-center gap-2.5 md:gap-4 min-w-0">
+                  {rec.photo_url && (
+                    <button onClick={() => setPreviewPhoto(rec.photo_url!)} className="w-9 h-9 md:w-10 md:h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 hover:ring-2 ring-blue-400 transition-all">
+                      <img src={rec.photo_url} alt="чек" className="w-full h-full object-cover" />
+                    </button>
+                  )}
+                  <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white text-sm shrink-0 ${cat.color} ${rec.photo_url ? 'hidden md:flex' : ''}`}>
+                    {isIncome ? '💰' : '📉'}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-black text-slate-800 text-sm leading-tight truncate">{rec.description}</div>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                      {rec.receipt_number && <span className="px-1.5 py-0.5 bg-blue-50 rounded text-[8px] font-black text-blue-500">{rec.receipt_number}</span>}
+                      <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-600">{rec.payment_method || 'Ф1'}</span>
+                      <span className="text-[10px] font-bold text-slate-400">{cat.name}</span>
+                      <span className="text-[10px] text-slate-300">{new Date(rec.date).toLocaleDateString('ru-RU')}</span>
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-sm md:text-lg font-black ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {isIncome ? '+' : '-'}{rec.amount.toLocaleString()} <span className="text-[9px]">грн</span>
+                  </span>
+                  <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gray-50 text-slate-200 hover:text-red-500 transition-colors flex items-center justify-center text-sm">✕</button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-sm md:text-lg font-black ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  {isIncome ? '+' : '-'}{rec.amount.toLocaleString()} <span className="text-[9px]">грн</span>
-                </span>
-                <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gray-50 text-slate-200 hover:text-red-500 transition-colors flex items-center justify-center text-sm">✕</button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          });
+        })()}
       </div>
 
       {/* Превью фото чека */}
