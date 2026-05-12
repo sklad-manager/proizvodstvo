@@ -81,9 +81,23 @@ export async function GET() {
     // Миграция: добавляем колонки если их нет (для существующих данных)
     await client.sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'expense'`;
     await client.sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS is_confirmed BOOLEAN DEFAULT true`;
+    await client.sql`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_id TEXT`;
+
+    // 6. Таблица чеков (фото)
+    await client.sql`
+      CREATE TABLE IF NOT EXISTS receipts (
+        id TEXT PRIMARY KEY,
+        receipt_number TEXT UNIQUE NOT NULL,
+        photo_url TEXT,
+        total_amount DECIMAL(12,2) DEFAULT 0,
+        items_count INTEGER DEFAULT 0,
+        date DATE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
 
     await client.sql`COMMIT`;
-    return NextResponse.json({ success: true, message: "БД готова (Склад, График, ТО, Финансы + Телеграм)" }, { status: 200 });
+    return NextResponse.json({ success: true, message: "БД готова (Склад, График, ТО, Финансы, Чеки)" }, { status: 200 });
   } catch (error: any) {
     await client.sql`ROLLBACK`;
     return NextResponse.json({ error: error.message }, { status: 500 });

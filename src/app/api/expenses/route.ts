@@ -1,13 +1,15 @@
 import { db } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 
-// Получить все записи (расходы + доходы)
+// Получить все записи (расходы + доходы) с информацией о чеках
 export async function GET() {
   const client = await db.connect();
   try {
     const result = await client.sql`
-      SELECT * FROM expenses 
-      ORDER BY date DESC, created_at DESC
+      SELECT e.*, r.receipt_number, r.photo_url
+      FROM expenses e
+      LEFT JOIN receipts r ON e.receipt_id = r.id
+      ORDER BY e.date DESC, e.created_at DESC
     `;
     
     const expenses = result.rows.map(row => ({
@@ -28,11 +30,11 @@ export async function POST(request: Request) {
   const client = await db.connect();
   try {
     const body = await request.json();
-    const { id, category, description, amount, date, status, paymentMethod, type, isConfirmed } = body;
+    const { id, category, description, amount, date, status, paymentMethod, type, isConfirmed, receiptId } = body;
 
     await client.sql`
-      INSERT INTO expenses (id, category, description, amount, date, status, payment_method, type, is_confirmed)
-      VALUES (${id}, ${category}, ${description}, ${amount}, ${date}, ${status || 'planned'}, ${paymentMethod || 'Ф1'}, ${type || 'expense'}, ${isConfirmed !== false})
+      INSERT INTO expenses (id, category, description, amount, date, status, payment_method, type, is_confirmed, receipt_id)
+      VALUES (${id}, ${category}, ${description}, ${amount}, ${date}, ${status || 'planned'}, ${paymentMethod || 'Ф1'}, ${type || 'expense'}, ${isConfirmed !== false}, ${receiptId || null})
     `;
 
     return NextResponse.json({ success: true });
