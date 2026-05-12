@@ -17,7 +17,9 @@ export async function GET() {
           receivedDate: bale.received_date,
           isConsumed: bale.is_consumed,
           consumedDate: bale.consumed_date,
-          weight: Number(bale.weight)
+          weight: Number(bale.weight),
+          status: bale.status || 'warehouse',
+          comment: bale.comment || ''
         }))
     }));
 
@@ -43,8 +45,8 @@ export async function POST(request: Request) {
       `;
     } else if (type === 'bale') {
       await client.sql`
-        INSERT INTO raw_materials_bales (id, category_id, number, weight, received_date, is_consumed)
-        VALUES (${data.id}, ${data.category_id}, ${data.number}, ${data.weight}, ${data.receivedDate}, false)
+        INSERT INTO raw_materials_bales (id, category_id, number, weight, received_date, is_consumed, status, comment)
+        VALUES (${data.id}, ${data.category_id}, ${data.number}, ${data.weight}, ${data.receivedDate}, false, 'warehouse', '')
       `;
     }
 
@@ -56,18 +58,32 @@ export async function POST(request: Request) {
   }
 }
 
-// Обновить (списать) тюк или удалить
+// Обновить тюк (статус, комментарий, списание)
 export async function PATCH(request: Request) {
   const client = await db.connect();
   try {
     const body = await request.json();
-    const { id, isConsumed, consumedDate } = body;
+    const { id, status, comment, isConsumed, consumedDate } = body;
 
-    await client.sql`
-      UPDATE raw_materials_bales
-      SET is_consumed = ${isConsumed}, consumed_date = ${consumedDate}
-      WHERE id = ${id}
-    `;
+    // Обновляем статус
+    if (status !== undefined) {
+      await client.sql`UPDATE raw_materials_bales SET status = ${status} WHERE id = ${id}`;
+      // Если статус "finished" — помечаем как списанный
+      if (status === 'finished') {
+        const finishDate = consumedDate || new Date().toISOString().split('T')[0];
+        await client.sql`UPDATE raw_materials_bales SET is_consumed = true, consumed_date = ${finishDate} WHERE id = ${id}`;
+      }
+    }
+
+    // Обновляем комментарий
+    if (comment !== undefined) {
+      await client.sql`UPDATE raw_materials_bales SET comment = ${comment} WHERE id = ${id}`;
+    }
+
+    // Прямое списание (обратная совместимость)
+    if (isConsumed !== undefined && status === undefined) {
+      await client.sql`UPDATE raw_materials_bales SET is_consumed = ${isConsumed}, consumed_date = ${consumedDate} WHERE id = ${id}`;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

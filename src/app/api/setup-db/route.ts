@@ -51,9 +51,15 @@ export async function GET() {
         weight DECIMAL(10, 2),
         received_date TEXT,
         is_consumed BOOLEAN DEFAULT false,
-        consumed_date TEXT
+        consumed_date TEXT,
+        status TEXT DEFAULT 'warehouse',
+        comment TEXT DEFAULT ''
       );
     `;
+
+    // Миграция тюков: добавляем status и comment
+    await client.sql`ALTER TABLE raw_materials_bales ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'warehouse'`;
+    await client.sql`ALTER TABLE raw_materials_bales ADD COLUMN IF NOT EXISTS comment TEXT DEFAULT ''`;
 
     // 5. Расходы и доходы
     await client.sql`
