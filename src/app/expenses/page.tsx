@@ -353,10 +353,11 @@ export default function ExpensesPage() {
 
       {/* Превью фото чека */}
       {previewPhoto && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewPhoto(null)}>
-          <div className="max-w-2xl max-h-[85vh] overflow-hidden rounded-3xl shadow-2xl">
-            <img src={previewPhoto} alt="Чек" className="w-full h-full object-contain" />
+        <div className="fixed inset-0 z-[999] flex items-start justify-center bg-black/90 backdrop-blur-sm overflow-y-auto" onClick={() => setPreviewPhoto(null)}>
+          <div className="py-8 px-4 min-h-screen flex items-center justify-center">
+            <img src={previewPhoto} alt="Чек" className="max-w-full md:max-w-2xl rounded-2xl shadow-2xl" style={{ maxHeight: 'none' }} />
           </div>
+          <button onClick={() => setPreviewPhoto(null)} className="fixed top-4 right-4 w-12 h-12 rounded-full bg-white/20 text-white flex items-center justify-center text-2xl hover:bg-white/30 transition-all">✕</button>
         </div>
       )}
     </div>
