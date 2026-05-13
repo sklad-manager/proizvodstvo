@@ -58,19 +58,21 @@ export async function PATCH(request: Request) {
     if (status !== undefined) {
       await client.sql`UPDATE expenses SET status = ${status} WHERE id = ${id}`;
     }
-    if (comment !== undefined) {
-      await client.sql`UPDATE expenses SET comment = ${comment} WHERE id = ${id}`;
-    }
-    if (date !== undefined) {
-      // Если это часть чека, обновляем дату всего чека и всех его позиций
+    if (comment !== undefined || date !== undefined) {
       const res = await client.sql`SELECT receipt_id FROM expenses WHERE id = ${id}`;
       const receiptId = res.rows[0]?.receipt_id;
 
       if (receiptId) {
-        await client.sql`UPDATE expenses SET date = ${date} WHERE receipt_id = ${receiptId}`;
-        await client.sql`UPDATE receipts SET date = ${date} WHERE id = ${receiptId}`;
+        if (date !== undefined) {
+          await client.sql`UPDATE expenses SET date = ${date} WHERE receipt_id = ${receiptId}`;
+          await client.sql`UPDATE receipts SET date = ${date} WHERE id = ${receiptId}`;
+        }
+        if (comment !== undefined) {
+          await client.sql`UPDATE expenses SET comment = ${comment} WHERE receipt_id = ${receiptId}`;
+        }
       } else {
-        await client.sql`UPDATE expenses SET date = ${date} WHERE id = ${id}`;
+        if (date !== undefined) await client.sql`UPDATE expenses SET date = ${date} WHERE id = ${id}`;
+        if (comment !== undefined) await client.sql`UPDATE expenses SET comment = ${comment} WHERE id = ${id}`;
       }
     }
 
