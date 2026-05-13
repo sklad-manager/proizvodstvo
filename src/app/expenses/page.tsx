@@ -30,7 +30,6 @@ const CATEGORIES: Record<string, { name: string; color: string }> = {
   sales: { name: 'Продажа', color: 'bg-teal-500' },
   other: { name: 'Прочее', color: 'bg-slate-500' },
 };
-const PAY_METHODS = ['Ф1', 'Ф2', 'ФОП'];
 
 export default function ExpensesPage() {
   const [records, setRecords] = useState<FinRecord[]>([]);
@@ -286,7 +285,6 @@ export default function ExpensesPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-sm text-slate-700 truncate">{rec.description}</div>
-                          <div className="text-[9px] text-slate-400 font-bold">{cat.name} · {rec.payment_method}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -335,14 +333,7 @@ export default function ExpensesPage() {
                 {Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v.name}</option>)}
               </select>
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 px-2">Форма оплаты</label>
-              <div className="flex gap-2">
-                {PAY_METHODS.map(m => (
-                  <button key={m} onClick={() => setNewPay(m)} className={`flex-1 py-3 rounded-xl font-black text-xs transition-all ${newPay === m ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>{m}</button>
-                ))}
-              </div>
-            </div>
+
           </div>
           <button onClick={addRecord} className="w-full mt-6 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all">Записать</button>
         </div>
@@ -356,10 +347,6 @@ export default function ExpensesPage() {
         ))}
         <div className="w-px bg-gray-100 mx-1"></div>
         <button onClick={() => setFilterPay('all')} className={`px-3 py-2 rounded-xl text-xs font-black transition-all ${filterPay === 'all' ? 'bg-slate-800 text-white' : 'bg-white text-slate-400 border border-gray-100'}`}>Все</button>
-        {PAY_METHODS.map(m => (
-          <button key={m} onClick={() => setFilterPay(m)}
-            className={`px-3 py-2 rounded-xl text-xs font-black transition-all ${filterPay === m ? 'bg-slate-800 text-white' : 'bg-white text-slate-400 border border-gray-100'}`}>{m}</button>
-        ))}
       </div>
 
       {/* Таблица операций */}
@@ -423,7 +410,7 @@ export default function ExpensesPage() {
                           <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-500">{group.items.length} поз.</span>
                         </div>
                         <div className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[200px]">
-                          {group.items[0]?.payment_method || 'Ф1'} · {new Date(group.items[0].date).toLocaleDateString('ru-RU')}
+                          {new Date(group.items[0].date).toLocaleDateString('ru-RU')}
                           {group.items[0]?.comment && <span className="ml-1 text-slate-500">· {group.items[0].comment}</span>}
                         </div>
                       </div>
@@ -472,7 +459,6 @@ export default function ExpensesPage() {
                                 <div className="min-w-0">
                                   <div className="text-sm font-bold text-slate-600 truncate">{rec.description}</div>
                                   <div className="flex items-center gap-1.5 mt-0.5">
-                                    <div className="text-[9px] text-slate-400">{cat.name}</div>
                                     <div className="text-[9px] text-slate-300">{new Date(rec.date).toLocaleDateString('ru-RU')}</div>
                                   </div>
                                   {rec.comment && !isEditing && (
@@ -537,8 +523,6 @@ export default function ExpensesPage() {
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                         {rec.receipt_number && <span className="px-1.5 py-0.5 bg-blue-50 rounded text-[8px] font-black text-blue-500">{rec.receipt_number}</span>}
-                        {!isIncome && <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-600">{rec.payment_method || 'Ф1'}</span>}
-                        {!isIncome && <span className="text-[10px] font-bold text-slate-400">{cat.name}</span>}
                         <span className="text-[10px] text-slate-300">{new Date(rec.date).toLocaleDateString('ru-RU')}</span>
                       </div>
                       {rec.comment && !isEditing && (
