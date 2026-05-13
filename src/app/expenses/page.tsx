@@ -431,15 +431,13 @@ export default function ExpensesPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="flex flex-col items-end gap-1">
                         <span className="text-sm md:text-lg font-black text-rose-500">-{total.toLocaleString()} <span className="text-[9px]">грн</span></span>
-                        {!readOnly && (
-                          <button onClick={(e) => { e.stopPropagation(); editingId === group.receiptId ? setEditingId(null) : startEditing({...group.items[0], id: group.receiptId!}); }} className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all ${editingId === group.receiptId ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
-                        )}
+                        <button onClick={(e) => { e.stopPropagation(); editingId === group.receiptId ? setEditingId(null) : startEditing({...group.items[0], id: group.receiptId!}); }} className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all ${editingId === group.receiptId ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
                       </div>
                       <span className={`text-slate-300 text-lg transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
                     </div>
                   </div>
                   {/* Панель редактирования для всего чека */}
-                  {editingId === group.receiptId && !readOnly && (
+                  {editingId === group.receiptId && (
                     <div className="px-4 pb-4 flex flex-col gap-2 border-t border-gray-50 bg-slate-50/50 pt-3">
                       <div className="flex gap-2">
                         <div className="flex flex-col gap-1 flex-1">
