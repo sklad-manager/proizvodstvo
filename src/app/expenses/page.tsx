@@ -199,10 +199,6 @@ export default function ExpensesPage() {
             className="px-4 py-2.5 rounded-2xl bg-slate-100 text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center gap-1.5">
             {isExporting ? '⏳' : '📥'} <span className="hidden md:inline">Экспорт</span>
           </button>
-          <button onClick={() => setShowForm(!showForm)}
-            className={`px-5 py-2.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg ${showForm ? 'bg-slate-100 text-slate-500' : 'bg-rose-500 text-white shadow-rose-200'}`}>
-            {showForm ? 'Отмена' : '+ Запись'}
-          </button>
         </div>
       </div>
 
@@ -305,39 +301,6 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Форма добавления */}
-      {showForm && (
-        <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl border-2 border-slate-100">
-          <div className="flex gap-2 mb-6">
-            <button onClick={() => setFormType('expense')} className={`flex-1 py-3 rounded-xl font-black text-xs transition-all ${formType === 'expense' ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Расход</button>
-            <button onClick={() => setFormType('income')} className={`flex-1 py-3 rounded-xl font-black text-xs transition-all ${formType === 'income' ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-50 text-slate-400'}`}>Деньги под отчёт</button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 px-2">Описание</label>
-              <input type="text" placeholder="Что..." className="w-full px-4 py-3 rounded-xl bg-slate-50 outline-none font-bold text-sm" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 px-2">Сумма</label>
-                <input type="number" placeholder="0" className="w-full px-4 py-3 rounded-xl bg-slate-50 outline-none font-black text-sm" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 px-2">Дата</label>
-                <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 outline-none font-bold text-sm" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 px-2">Категория</label>
-              <select className="w-full px-4 py-3 rounded-xl bg-slate-50 outline-none font-bold text-sm" value={newCat} onChange={(e) => setNewCat(e.target.value)}>
-                {Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v.name}</option>)}
-              </select>
-            </div>
-
-          </div>
-          <button onClick={addRecord} className="w-full mt-6 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all">Записать</button>
-        </div>
-      )}
 
       {/* Фильтры */}
       <div className="flex flex-wrap gap-2 px-1">
@@ -345,8 +308,6 @@ export default function ExpensesPage() {
           <button key={f.key} onClick={() => setFilterType(f.key as any)}
             className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${filterType === f.key ? 'bg-slate-800 text-white' : 'bg-white text-slate-400 border border-gray-100'}`}>{f.label}</button>
         ))}
-        <div className="w-px bg-gray-100 mx-1"></div>
-        <button onClick={() => setFilterPay('all')} className={`px-3 py-2 rounded-xl text-xs font-black transition-all ${filterPay === 'all' ? 'bg-slate-800 text-white' : 'bg-white text-slate-400 border border-gray-100'}`}>Все</button>
       </div>
 
       {/* Таблица операций */}
