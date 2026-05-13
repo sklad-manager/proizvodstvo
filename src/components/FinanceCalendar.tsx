@@ -5,7 +5,7 @@ interface CalendarProps {
   year: number;
   month: number; // 0-indexed
   selectedDate: string | null;
-  dayTotals: Record<string, { expense: number; income: number }>;
+  dayTotals: Record<string, { expense: number; income: number; reviewStatus?: 'approved' | 'issue' | 'none' }>;
   onSelectDate: (date: string | null) => void;
   onChangeMonth: (delta: number) => void;
 }
@@ -52,14 +52,24 @@ export default function FinanceCalendar({ year, month, selectedDate, dayTotals, 
             const isSelected = dateStr === selectedDate;
             const hasExpense = totals && totals.expense > 0;
             const hasIncome = totals && totals.income > 0;
+            const revStatus = totals?.reviewStatus || 'none';
+
+            let cellColor = 'hover:bg-gray-50 text-slate-600 border border-transparent';
+            if (isSelected) {
+              cellColor = 'bg-slate-800 text-white shadow-lg scale-105 border border-transparent z-10';
+            } else if (isToday) {
+              cellColor = 'bg-blue-50 text-blue-600 font-black border border-transparent';
+            } else if (revStatus === 'approved') {
+              cellColor = 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100/50';
+            } else if (revStatus === 'issue') {
+              cellColor = 'bg-rose-50 text-rose-700 font-bold border border-rose-100/50';
+            }
 
             return (
               <button
                 key={i}
                 onClick={() => onSelectDate(isSelected ? null : dateStr)}
-                className={`relative flex flex-col items-center py-1.5 rounded-xl transition-all text-sm
-                  ${isSelected ? 'bg-slate-800 text-white shadow-lg scale-105' : isToday ? 'bg-blue-50 text-blue-600 font-black' : 'hover:bg-gray-50 text-slate-600'}
-                `}
+                className={`relative flex flex-col items-center py-1.5 rounded-xl transition-all text-sm ${cellColor}`}
               >
                 <span className={`font-bold text-xs ${isSelected ? 'text-white' : ''}`}>{day}</span>
                 {(hasExpense || hasIncome) && (

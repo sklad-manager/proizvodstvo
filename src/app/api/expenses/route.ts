@@ -58,7 +58,7 @@ export async function PATCH(request: Request) {
     if (status !== undefined) {
       await client.sql`UPDATE expenses SET status = ${status} WHERE id = ${id}`;
     }
-    if (comment !== undefined || date !== undefined) {
+    if (comment !== undefined || date !== undefined || body.review_status !== undefined) {
       const res = await client.sql`SELECT receipt_id FROM expenses WHERE id = ${id}`;
       const receiptId = res.rows[0]?.receipt_id;
 
@@ -70,9 +70,13 @@ export async function PATCH(request: Request) {
         if (comment !== undefined) {
           await client.sql`UPDATE expenses SET comment = ${comment} WHERE receipt_id = ${receiptId}`;
         }
+        if (body.review_status !== undefined) {
+          await client.sql`UPDATE expenses SET review_status = ${body.review_status} WHERE receipt_id = ${receiptId}`;
+        }
       } else {
         if (date !== undefined) await client.sql`UPDATE expenses SET date = ${date} WHERE id = ${id}`;
         if (comment !== undefined) await client.sql`UPDATE expenses SET comment = ${comment} WHERE id = ${id}`;
+        if (body.review_status !== undefined) await client.sql`UPDATE expenses SET review_status = ${body.review_status} WHERE id = ${id}`;
       }
     }
 

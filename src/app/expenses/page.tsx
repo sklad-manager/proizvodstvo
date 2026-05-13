@@ -19,6 +19,7 @@ interface FinRecord {
   photo_url?: string;
   comment?: string;
   created_at?: string;
+  review_status?: 'none' | 'approved' | 'issue';
 }
 
 const CATEGORIES: Record<string, { name: string; color: string }> = {
@@ -56,6 +57,11 @@ export default function ExpensesPage() {
     setEditingId(null); loadData();
   };
 
+  const setReviewStatus = async (id: string, status: 'approved' | 'issue' | 'none') => {
+    await fetch('/api/expenses', { method: 'PATCH', body: JSON.stringify({ id, review_status: status }) });
+    loadData();
+  };
+
   const changeMonth = (delta: number) => {
     let m = calMonth + delta, y = calYear;
     if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
@@ -64,14 +70,25 @@ export default function ExpensesPage() {
 
   // Суммы по дням для календаря
   const dayTotals = useMemo(() => {
-    const map: Record<string, { expense: number; income: number }> = {};
-    records.filter(r => r.is_confirmed).forEach(r => {
+    const map: Record<string, { expense: number; income: number; reviewStatus?: 'approved' | 'issue' | 'none' }> = {};
+    const conf = records.filter(r => r.is_confirmed);
+    conf.forEach(r => {
       const d = r.date?.split('T')[0];
       if (!d) return;
-      if (!map[d]) map[d] = { expense: 0, income: 0 };
+      if (!map[d]) map[d] = { expense: 0, income: 0, reviewStatus: 'none' };
       if (r.type === 'income') map[d].income += r.amount;
       else map[d].expense += r.amount;
     });
+
+    Object.keys(map).forEach(d => {
+      const dayRecords = conf.filter(r => r.date?.split('T')[0] === d);
+      if (dayRecords.some(r => r.review_status === 'issue')) {
+        map[d].reviewStatus = 'issue';
+      } else if (dayRecords.length > 0 && dayRecords.every(r => r.review_status === 'approved')) {
+        map[d].reviewStatus = 'approved';
+      }
+    });
+
     return map;
   }, [records]);
 
@@ -357,8 +374,10 @@ export default function ExpensesPage() {
                   return next;
                 });
               };
+              const revStatus = group.items[0].review_status;
+              const bgClass = revStatus === 'approved' ? 'bg-emerald-50/50 border-emerald-400' : revStatus === 'issue' ? 'bg-rose-50/50 border-rose-500' : 'bg-white border-rose-400';
               return (
-                <div key={gi} className="bg-white rounded-2xl shadow-sm border-l-[6px] border-rose-400 overflow-hidden">
+                <div key={gi} className={`${bgClass} rounded-2xl shadow-sm border-l-[6px] overflow-hidden transition-all`}>
                   {/* Свёрнутая шапка чека */}
                   <div className="p-3.5 md:p-4 flex items-center justify-between gap-2 cursor-pointer hover:bg-slate-50/50 transition-all" onClick={toggleExpand}>
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -382,6 +401,8 @@ export default function ExpensesPage() {
                       <div className="flex flex-col items-end gap-1">
                         <span className="text-sm md:text-lg font-black text-rose-500">-{total.toLocaleString()} <span className="text-[9px]">грн</span></span>
                         <div className="flex items-center gap-1">
+                          <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'approved' ? 'none' : 'approved'); }} className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
+                          <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'issue' ? 'none' : 'issue'); }} className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
                           <button onClick={(e) => { e.stopPropagation(); editingId === group.receiptId ? setEditingId(null) : startEditing({...group.items[0], id: group.receiptId!}); }} className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all ${editingId === group.receiptId ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
                           <button onClick={(e) => { e.stopPropagation(); deleteReceipt(group.receiptId!); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
                         </div>
@@ -468,8 +489,14 @@ export default function ExpensesPage() {
             const cat = CATEGORIES[rec.category] || CATEGORIES.other;
             const isIncome = rec.type === 'income';
             const isEditing = editingId === rec.id;
+            const revStatus = rec.review_status;
+            let bgClass = 'bg-white border-rose-400';
+            if (revStatus === 'approved') bgClass = 'bg-emerald-50/50 border-emerald-400';
+            else if (revStatus === 'issue') bgClass = 'bg-rose-50/50 border-rose-500';
+            else if (isIncome) bgClass = 'bg-white border-emerald-500';
+
             return (
-              <div key={rec.id} className={`bg-white rounded-2xl shadow-sm border-l-[6px] transition-all hover:shadow-md overflow-hidden ${isIncome ? 'border-emerald-500' : 'border-rose-400'}`}>
+              <div key={rec.id} className={`${bgClass} rounded-2xl shadow-sm border-l-[6px] transition-all hover:shadow-md overflow-hidden`}>
                 <div className="p-3.5 md:p-5 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 md:gap-4 min-w-0">
                     {rec.photo_url && (
@@ -497,6 +524,8 @@ export default function ExpensesPage() {
                     <span className={`text-sm md:text-lg font-black ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
                       {isIncome ? '+' : '-'}{rec.amount.toLocaleString()} <span className="text-[9px]">грн</span>
                     </span>
+                    <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'approved' ? 'none' : 'approved')} className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-sm transition-all ${rec.review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
+                    <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'issue' ? 'none' : 'issue')} className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-sm transition-all ${rec.review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
                     <button onClick={() => isEditing ? setEditingId(null) : startEditing(rec)} className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-sm transition-all ${isEditing ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
                     <button onClick={() => deleteRecord(rec.id)} className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gray-50 text-slate-200 hover:text-red-500 active:text-red-500 transition-colors flex items-center justify-center text-sm">✕</button>
                   </div>
