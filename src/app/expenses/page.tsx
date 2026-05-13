@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import FinanceCalendar from '@/components/FinanceCalendar';
+import { useAuth } from '@/components/AuthProvider';
 
 interface FinRecord {
   id: string;
@@ -33,6 +34,12 @@ const CATEGORIES: Record<string, { name: string; color: string }> = {
 };
 
 export default function ExpensesPage() {
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
+  const isOperator = role === 'operator';
+  const canSetStatus = isAdmin || isOperator;
+  const canEditOrDelete = isAdmin;
+
   const [records, setRecords] = useState<FinRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'expense' | 'income'>('all');
@@ -402,10 +409,28 @@ export default function ExpensesPage() {
                         <span className="text-sm md:text-lg font-black text-rose-500">-{total.toLocaleString()} <span className="text-[9px]">грн</span></span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'approved' ? 'none' : 'approved'); }} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
-                        <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'issue' ? 'none' : 'issue'); }} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
-                        <button onClick={(e) => { e.stopPropagation(); editingId === group.receiptId ? setEditingId(null) : startEditing({...group.items[0], id: group.receiptId!}); }} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${editingId === group.receiptId ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteReceipt(group.receiptId!); }} className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
+                        {canSetStatus ? (
+                          <>
+                            <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'approved' ? 'none' : 'approved'); }} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
+                            <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'issue' ? 'none' : 'issue'); }} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                            <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                          </>
+                        )}
+                        {canEditOrDelete ? (
+                          <>
+                            <button onClick={(e) => { e.stopPropagation(); editingId === group.receiptId ? setEditingId(null) : startEditing({...group.items[0], id: group.receiptId!}); }} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${editingId === group.receiptId ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
+                            <button onClick={(e) => { e.stopPropagation(); deleteReceipt(group.receiptId!); }} className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                            <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                          </>
+                        )}
                       </div>
                       <div className="w-6 md:w-8 flex justify-center shrink-0 ml-1 md:ml-2">
                         <span className={`text-slate-300 text-lg transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
@@ -459,8 +484,17 @@ export default function ExpensesPage() {
                                 <div className="flex items-center gap-1 shrink-0">
                                   <div className="w-7 h-7 md:w-8 md:h-8"></div>
                                   <div className="w-7 h-7 md:w-8 md:h-8"></div>
-                                  <button onClick={() => isEditing ? setEditingId(null) : startEditing(rec)} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${isEditing ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
-                                  <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
+                                  {canEditOrDelete ? (
+                                    <>
+                                      <button onClick={() => isEditing ? setEditingId(null) : startEditing(rec)} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${isEditing ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
+                                      <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                                      <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                                    </>
+                                  )}
                                 </div>
                                 <div className="w-6 md:w-8 shrink-0 ml-1 md:ml-2"></div>
                               </div>
@@ -536,10 +570,28 @@ export default function ExpensesPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'approved' ? 'none' : 'approved')} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${rec.review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
-                      <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'issue' ? 'none' : 'issue')} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${rec.review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
-                      <button onClick={() => isEditing ? setEditingId(null) : startEditing(rec)} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${isEditing ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
-                      <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
+                      {canSetStatus ? (
+                        <>
+                          <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'approved' ? 'none' : 'approved')} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${rec.review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
+                          <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'issue' ? 'none' : 'issue')} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${rec.review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                          <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                        </>
+                      )}
+                      {canEditOrDelete ? (
+                        <>
+                          <button onClick={() => isEditing ? setEditingId(null) : startEditing(rec)} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${isEditing ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
+                          <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                          <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                        </>
+                      )}
                     </div>
                     <div className="w-6 md:w-8 shrink-0 ml-1 md:ml-2"></div>
                   </div>

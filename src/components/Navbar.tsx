@@ -1,6 +1,15 @@
+'use client';
 import React from 'react';
+import { useAuth } from './AuthProvider';
+
+const ROLE_NAMES: Record<string, string> = {
+  admin: 'Администратор',
+  operator: 'Оператор',
+  observer: 'Наблюдатель'
+};
 
 const Navbar = ({ title }: { title: string }) => {
+  const { role, logout } = useAuth();
   return (
     <nav className="relative flex flex-wrap items-center justify-between px-0 py-2 mx-6 transition-all ease-in shadow-none duration-250 rounded-2xl lg:flex-nowrap lg:justify-start" navbar-main="true" navbar-scroll="false">
       <div className="flex items-center justify-between w-full px-4 py-1 mx-auto flex-wrap-inherit">
@@ -27,10 +36,10 @@ const Navbar = ({ title }: { title: string }) => {
           </div>
           <ul className="flex flex-row justify-end pl-0 mb-0 list-none md-max:w-full">
             <li className="flex items-center">
-              <a href="#" className="block px-0 py-2 text-sm font-semibold text-white transition-all ease-nav-brand">
+              <button onClick={logout} className="block px-0 py-2 text-sm font-semibold text-white transition-all ease-nav-brand hover:text-red-200">
                 <i className="fa fa-user sm:mr-1"></i>
-                <span className="hidden sm:inline">Войти</span>
-              </a>
+                <span className="hidden sm:inline">{role ? ROLE_NAMES[role] || 'Выйти' : 'Выйти'} (Выход)</span>
+              </button>
             </li>
             <li className="flex items-center pl-4 xl:hidden">
               <a href="#" className="block p-0 text-sm text-white transition-all ease-nav-brand" sidenav-trigger="true">

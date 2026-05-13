@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: "Автоматизация учета производства вискозных салфеток",
 };
 
+import AuthProvider from "@/components/AuthProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -24,19 +26,21 @@ export default function RootLayout({
         <script src="https://kit.fontawesome.com/42d5adcbca.js" crossOrigin="anonymous" async></script>
       </head>
       <body className="m-0 font-sans text-base antialiased font-normal leading-default bg-gray-50 text-slate-500 min-h-screen flex flex-col">
-        <div className="absolute w-full bg-blue-500 min-h-75 z-0"></div>
+        <AuthProvider>
+          <div className="absolute w-full bg-blue-500 min-h-75 z-0"></div>
 
-        <main className="relative flex-grow transition-all duration-200 ease-in-out w-full max-w-7xl mx-auto rounded-xl z-10 pt-4">
-          <Navbar title="Главное меню" />
+          <main className="relative flex-grow transition-all duration-200 ease-in-out w-full max-w-7xl mx-auto rounded-xl z-10 pt-4">
+            <Navbar title="Главное меню" />
+            
+            <div className="w-full px-6 py-6 mx-auto">
+              {children}
+            </div>
+          </main>
           
-          <div className="w-full px-6 py-6 mx-auto">
-            {children}
+          <div className="z-10 bg-white shadow-inner mt-auto">
+             <Footer />
           </div>
-        </main>
-        
-        <div className="z-10 bg-white shadow-inner mt-auto">
-           <Footer />
-        </div>
+        </AuthProvider>
       </body>
     </html>
   );

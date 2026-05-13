@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/components/AuthProvider';
 
 interface Employee {
   id: string; // В базе данных id строковые (Date.now())
@@ -12,6 +13,9 @@ interface Employee {
 }
 
 export default function SchedulePage() {
+  const { role } = useAuth();
+  const canEditOrDelete = role === 'admin';
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCloudMode, setIsCloudMode] = useState(false);
@@ -201,21 +205,23 @@ export default function SchedulePage() {
             <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Управление персоналом</div>
           </div>
         </div>
-        <div className="flex gap-2 w-full md:w-auto items-center">
-           <Link href="/ai-assistant" className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-all shadow-sm shrink-0">
-             <i className="ni ni-bulb-61"></i>
-           </Link>
-           <input 
-              type="text" 
-              placeholder="ФИО сотрудника..."
-              className="flex-1 md:flex-none px-4 py-2 rounded-xl border border-gray-200 focus:border-red-400 outline-none text-sm min-w-0 md:min-w-48"
-              value={newEmployeeName}
-              onChange={(e) => setNewEmployeeName(e.target.value)}
-            />
-            <button onClick={addEmployee} className="px-4 md:px-5 py-2 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-black transition-all">
-              +
-            </button>
-        </div>
+        {canEditOrDelete && (
+          <div className="flex gap-2 w-full md:w-auto items-center">
+             <Link href="/ai-assistant" className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-all shadow-sm shrink-0">
+               <i className="ni ni-bulb-61"></i>
+             </Link>
+             <input 
+                type="text" 
+                placeholder="ФИО сотрудника..."
+                className="flex-1 md:flex-none px-4 py-2 rounded-xl border border-gray-200 focus:border-red-400 outline-none text-sm min-w-0 md:min-w-48"
+                value={newEmployeeName}
+                onChange={(e) => setNewEmployeeName(e.target.value)}
+              />
+              <button onClick={addEmployee} className="px-4 md:px-5 py-2 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-black transition-all">
+                +
+              </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -315,18 +321,19 @@ export default function SchedulePage() {
                         </td>
                         <td className="px-2 md:px-4 py-4 md:py-5 text-center">
                           <button 
-                            onClick={() => toggleActiveStatus(emp.id, emp.isActive)}
-                            className={`relative w-12 h-7 rounded-full transition-all duration-300 ${emp.isActive ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                            onClick={() => canEditOrDelete && toggleActiveStatus(emp.id, emp.isActive)}
+                            disabled={!canEditOrDelete}
+                            className={`relative w-12 h-7 rounded-full transition-all duration-300 ${emp.isActive ? 'bg-emerald-500' : 'bg-slate-200'} ${!canEditOrDelete ? 'opacity-70 cursor-not-allowed' : ''}`}
                           >
                             <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${emp.isActive ? 'left-[22px]' : 'left-0.5'}`}></span>
                           </button>
                         </td>
                         <td className="px-4 md:px-8 py-4 md:py-5 text-center">
                           <button 
-                            onClick={() => toggleAttendanceOnDate(emp.id, selectedDate)}
-                            disabled={!emp.isActive}
+                            onClick={() => canEditOrDelete && toggleAttendanceOnDate(emp.id, selectedDate)}
+                            disabled={!emp.isActive || !canEditOrDelete}
                             className={`px-4 md:px-6 py-2 md:py-2.5 rounded-2xl text-[11px] font-black transition-all
-                              ${!emp.isActive ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : isWorked ? 'bg-emerald-500 text-white shadow-md' : 'bg-white border border-gray-100 text-slate-400 hover:text-emerald-500'}
+                              ${!emp.isActive ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : isWorked ? 'bg-emerald-500 text-white shadow-md' : 'bg-white border border-gray-100 text-slate-400 ' + (canEditOrDelete ? 'hover:text-emerald-500' : 'cursor-not-allowed')}
                             `}
                           >
                             {isWorked ? 'РАБОТАЛ' : 'ОТМЕТИТЬ'}
@@ -409,29 +416,31 @@ export default function SchedulePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {selectedEmployeeForModal.isActive ? (
+                {canEditOrDelete && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedEmployeeForModal.isActive ? (
+                      <button 
+                        onClick={() => archiveEmployee(selectedEmployeeForModal.id)}
+                        className="py-4 rounded-2xl bg-orange-50 text-orange-600 font-black text-[10px] uppercase tracking-widest hover:bg-orange-100 transition-all border border-orange-100"
+                      >
+                        Отправить в архив
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => restoreEmployee(selectedEmployeeForModal.id)}
+                        className="py-4 rounded-2xl bg-emerald-50 text-emerald-600 font-black text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all border border-emerald-100"
+                      >
+                        Вернуть в смену
+                      </button>
+                    )}
                     <button 
-                      onClick={() => archiveEmployee(selectedEmployeeForModal.id)}
-                      className="py-4 rounded-2xl bg-orange-50 text-orange-600 font-black text-[10px] uppercase tracking-widest hover:bg-orange-100 transition-all border border-orange-100"
+                      onClick={() => deleteEmployee(selectedEmployeeForModal.id)}
+                      className="py-4 rounded-2xl bg-red-50 text-red-600 font-black text-[10px] uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100"
                     >
-                      Отправить в архив
+                      Удалить полностью
                     </button>
-                  ) : (
-                    <button 
-                      onClick={() => restoreEmployee(selectedEmployeeForModal.id)}
-                      className="py-4 rounded-2xl bg-emerald-50 text-emerald-600 font-black text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all border border-emerald-100"
-                    >
-                      Вернуть в смену
-                    </button>
-                  )}
-                  <button 
-                    onClick={() => deleteEmployee(selectedEmployeeForModal.id)}
-                    className="py-4 rounded-2xl bg-red-50 text-red-600 font-black text-[10px] uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100"
-                  >
-                    Удалить полностью
-                  </button>
-                </div>
+                  </div>
+                )}
              </div>
           </div>
         </div>

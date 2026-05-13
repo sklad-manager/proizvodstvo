@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/components/AuthProvider';
 
 interface Bale {
   id: string;
@@ -29,6 +30,10 @@ const STATUS_OPTIONS = [
 ];
 
 export default function RawMaterialsPage() {
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
+  const canEditOrDelete = isAdmin;
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCloudMode, setIsCloudMode] = useState(false);
@@ -221,14 +226,16 @@ export default function RawMaterialsPage() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2 w-full md:w-auto items-center">
-          <Link href="/ai-assistant" className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-all shadow-sm shrink-0">
-            <i className="ni ni-bulb-61"></i>
-          </Link>
-          <input type="text" placeholder="Название папки..." className="flex-1 md:flex-none px-4 py-2.5 rounded-xl border border-gray-200 focus:border-orange-400 outline-none text-sm min-w-0"
-            value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }} />
-          <button onClick={addCategory} className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-black transition-all active:scale-95">+</button>
-        </div>
+        {canEditOrDelete && (
+          <div className="flex gap-2 w-full md:w-auto items-center">
+            <Link href="/ai-assistant" className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-all shadow-sm shrink-0">
+              <i className="ni ni-bulb-61"></i>
+            </Link>
+            <input type="text" placeholder="Название папки..." className="flex-1 md:flex-none px-4 py-2.5 rounded-xl border border-gray-200 focus:border-orange-400 outline-none text-sm min-w-0"
+              value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }} />
+            <button onClick={addCategory} className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-black transition-all active:scale-95">+</button>
+          </div>
+        )}
       </div>
 
       {/* Список папок */}
@@ -244,9 +251,11 @@ export default function RawMaterialsPage() {
                   <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-yellow-500 flex items-center justify-center text-white shadow-lg">
                     <i className="ni ni-folder-17 text-xl md:text-2xl"></i>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); deleteCategory(cat.id); }} className="text-slate-300 hover:text-red-500 transition-colors">
-                    <i className="ni ni-fat-remove text-xl"></i>
-                  </button>
+                  {canEditOrDelete && (
+                    <button onClick={(e) => { e.stopPropagation(); deleteCategory(cat.id); }} className="text-slate-300 hover:text-red-500 transition-colors">
+                      <i className="ni ni-fat-remove text-xl"></i>
+                    </button>
+                  )}
                 </div>
                 <h3 className="text-lg md:text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">{cat.name}</h3>
                 <div className="flex items-baseline gap-2">
@@ -294,17 +303,19 @@ export default function RawMaterialsPage() {
                   </div>
 
                   {/* Форма добавления */}
-                  <div className="p-4 md:p-6 border-b border-gray-100 bg-gray-50 flex flex-wrap items-end gap-3 shrink-0">
-                    <div className="flex-1 min-w-[70px]">
-                      <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">№</label>
-                      <input type="text" placeholder="№" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-orange-400 text-sm" value={newBaleNumber} onChange={(e) => setNewBaleNumber(e.target.value)} />
+                  {canEditOrDelete && (
+                    <div className="flex flex-wrap md:flex-nowrap items-end gap-2 px-4 md:px-6 py-4 bg-slate-50/50 border-b border-gray-100">
+                      <div className="flex-1 min-w-[100px]">
+                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">№ Тюка</label>
+                        <input type="text" placeholder="№" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-orange-400 text-sm" value={newBaleNumber} onChange={(e) => setNewBaleNumber(e.target.value)} />
+                      </div>
+                      <div className="flex-1 min-w-[70px]">
+                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Вес (кг)</label>
+                        <input type="number" placeholder="Вес" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-orange-400 text-sm" value={newBaleWeight} onChange={(e) => setNewBaleWeight(e.target.value)} />
+                      </div>
+                      <button onClick={() => addBale(cat.id)} className="h-[42px] px-6 rounded-xl bg-orange-500 text-white font-black uppercase text-xs hover:bg-orange-600 shadow-lg w-full md:w-auto transition-all active:scale-95">Принять</button>
                     </div>
-                    <div className="flex-1 min-w-[70px]">
-                      <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Вес (кг)</label>
-                      <input type="number" placeholder="Вес" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-orange-400 text-sm" value={newBaleWeight} onChange={(e) => setNewBaleWeight(e.target.value)} />
-                    </div>
-                    <button onClick={() => addBale(cat.id)} className="h-[42px] px-6 rounded-xl bg-orange-500 text-white font-black uppercase text-xs hover:bg-orange-600 shadow-lg w-full md:w-auto transition-all active:scale-95">Принять</button>
-                  </div>
+                  )}
 
                   {/* Список тюков */}
                   <div className="flex-1 overflow-y-auto" onClick={() => setOpenDropdown(null)}>
@@ -339,15 +350,15 @@ export default function RawMaterialsPage() {
                             {/* Выпадающий статус */}
                             <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
                               <button
-                                onClick={() => setOpenDropdown(isDropdownOpen ? null : bale.id)}
-                                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl border text-[9px] md:text-[10px] font-black uppercase transition-all flex items-center gap-1.5 ${currentStatus.light}`}
+                                onClick={() => canEditOrDelete && setOpenDropdown(isDropdownOpen ? null : bale.id)}
+                                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl border text-[9px] md:text-[10px] font-black uppercase transition-all flex items-center gap-1.5 ${currentStatus.light} ${!canEditOrDelete ? 'cursor-default' : ''}`}
                               >
                                 <span>{currentStatus.emoji}</span>
                                 <span className="hidden md:inline">{currentStatus.label}</span>
-                                <span className="text-[8px] opacity-50">▼</span>
+                                {canEditOrDelete && <span className="text-[8px] opacity-50">▼</span>}
                               </button>
 
-                              {isDropdownOpen && bale.status !== 'finished' && (
+                              {isDropdownOpen && bale.status !== 'finished' && canEditOrDelete && (
                                 <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 min-w-[180px] py-1 overflow-hidden">
                                   {STATUS_OPTIONS.filter(s => s.value !== bale.status).map(opt => (
                                     <button
@@ -364,15 +375,21 @@ export default function RawMaterialsPage() {
                             </div>
 
                             {/* Комментарий */}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setEditingComment(isEditingComment ? null : bale.id); setCommentText(bale.comment || ''); }}
-                              className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center shrink-0 text-sm transition-all ${bale.comment ? 'bg-amber-50 text-amber-500' : 'bg-gray-50 text-slate-200 hover:text-slate-400'}`}
-                            >💬</button>
+                            {canEditOrDelete ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingComment(isEditingComment ? null : bale.id); setCommentText(bale.comment || ''); }}
+                                className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center shrink-0 text-sm transition-all ${bale.comment ? 'bg-amber-50 text-amber-500' : 'bg-gray-50 text-slate-200 hover:text-slate-400'}`}
+                              >💬</button>
+                            ) : (
+                              bale.comment ? <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center shrink-0 text-sm bg-amber-50 text-amber-500">💬</div> : null
+                            )}
 
                             {/* Удалить */}
-                            <button onClick={() => deleteBale(cat.id, bale.id)} className="text-slate-200 hover:text-red-500 transition-colors shrink-0">
-                              <i className="ni ni-fat-remove text-lg"></i>
-                            </button>
+                            {canEditOrDelete && (
+                              <button onClick={() => deleteBale(cat.id, bale.id)} className="text-slate-200 hover:text-red-500 transition-colors shrink-0">
+                                <i className="ni ni-fat-remove text-lg"></i>
+                              </button>
+                            )}
                           </div>
 
                           {/* Ввод нового веса при возврате */}
