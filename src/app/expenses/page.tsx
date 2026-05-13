@@ -397,17 +397,19 @@ export default function ExpensesPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center shrink-0">
+                      <div className="w-[70px] md:w-[100px] text-right shrink-0 mr-2 md:mr-4">
                         <span className="text-sm md:text-lg font-black text-rose-500">-{total.toLocaleString()} <span className="text-[9px]">грн</span></span>
-                        <div className="flex items-center gap-1">
-                          <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'approved' ? 'none' : 'approved'); }} className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
-                          <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'issue' ? 'none' : 'issue'); }} className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
-                          <button onClick={(e) => { e.stopPropagation(); editingId === group.receiptId ? setEditingId(null) : startEditing({...group.items[0], id: group.receiptId!}); }} className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all ${editingId === group.receiptId ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
-                          <button onClick={(e) => { e.stopPropagation(); deleteReceipt(group.receiptId!); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
-                        </div>
                       </div>
-                      <span className={`text-slate-300 text-lg transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'approved' ? 'none' : 'approved'); }} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
+                        <button onClick={(e) => { e.stopPropagation(); setReviewStatus(group.items[0].id, group.items[0].review_status === 'issue' ? 'none' : 'issue'); }} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${group.items[0].review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
+                        <button onClick={(e) => { e.stopPropagation(); editingId === group.receiptId ? setEditingId(null) : startEditing({...group.items[0], id: group.receiptId!}); }} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${editingId === group.receiptId ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteReceipt(group.receiptId!); }} className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
+                      </div>
+                      <div className="w-6 md:w-8 flex justify-center shrink-0 ml-1 md:ml-2">
+                        <span className={`text-slate-300 text-lg transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                      </div>
                     </div>
                   </div>
                   {/* Панель редактирования для всего чека */}
@@ -450,10 +452,17 @@ export default function ExpensesPage() {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-sm font-black text-rose-400">-{rec.amount.toLocaleString()}</span>
-                                <button onClick={() => isEditing ? setEditingId(null) : startEditing(rec)} className={`w-6 h-6 rounded flex items-center justify-center text-[10px] transition-all ${isEditing ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
-                                <button onClick={() => deleteRecord(rec.id)} className="w-6 h-6 rounded bg-gray-50 text-slate-200 hover:text-red-500 active:text-red-500 transition-colors flex items-center justify-center text-xs">✕</button>
+                              <div className="flex items-center shrink-0">
+                                <div className="w-[70px] md:w-[100px] text-right shrink-0 mr-2 md:mr-4">
+                                  <span className="text-sm md:text-base font-black text-rose-400">-{rec.amount.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                                  <div className="w-7 h-7 md:w-8 md:h-8"></div>
+                                  <button onClick={() => isEditing ? setEditingId(null) : startEditing(rec)} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${isEditing ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
+                                  <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
+                                </div>
+                                <div className="w-6 md:w-8 shrink-0 ml-1 md:ml-2"></div>
                               </div>
                             </div>
                             {/* Панель редактирования */}
@@ -520,14 +529,19 @@ export default function ExpensesPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className={`text-sm md:text-lg font-black ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      {isIncome ? '+' : '-'}{rec.amount.toLocaleString()} <span className="text-[9px]">грн</span>
-                    </span>
-                    <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'approved' ? 'none' : 'approved')} className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-sm transition-all ${rec.review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
-                    <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'issue' ? 'none' : 'issue')} className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-sm transition-all ${rec.review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
-                    <button onClick={() => isEditing ? setEditingId(null) : startEditing(rec)} className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-sm transition-all ${isEditing ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
-                    <button onClick={() => deleteRecord(rec.id)} className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gray-50 text-slate-200 hover:text-red-500 active:text-red-500 transition-colors flex items-center justify-center text-sm">✕</button>
+                  <div className="flex items-center shrink-0">
+                    <div className="w-[70px] md:w-[100px] text-right shrink-0 mr-2 md:mr-4">
+                      <span className={`text-sm md:text-lg font-black ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {isIncome ? '+' : '-'}{rec.amount.toLocaleString()} <span className="text-[9px]">грн</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'approved' ? 'none' : 'approved')} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${rec.review_status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-400 hover:bg-emerald-100 active:bg-emerald-200'}`}>✅</button>
+                      <button onClick={() => setReviewStatus(rec.id, rec.review_status === 'issue' ? 'none' : 'issue')} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${rec.review_status === 'issue' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200'}`}>❓</button>
+                      <button onClick={() => isEditing ? setEditingId(null) : startEditing(rec)} className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all ${isEditing ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-400 active:bg-blue-100'}`}>✏️</button>
+                      <button onClick={() => deleteRecord(rec.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-xs transition-all bg-rose-50 text-rose-400 hover:bg-rose-100 active:bg-rose-200">❌</button>
+                    </div>
+                    <div className="w-6 md:w-8 shrink-0 ml-1 md:ml-2"></div>
                   </div>
                 </div>
                 {/* Панель редактирования */}
