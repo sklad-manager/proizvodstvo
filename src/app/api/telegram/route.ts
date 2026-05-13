@@ -74,7 +74,11 @@ async function downloadAndUploadPhoto(token: string, fileId: string, receiptNumb
   const buffer = await imageRes.arrayBuffer();
   const base64 = Buffer.from(buffer).toString('base64');
 
-  const blob = await put(`receipts/${receiptNumber}.jpg`, Buffer.from(buffer), { access: 'public', contentType: 'image/jpeg' });
+  const blob = await put(`receipts/${receiptNumber}.jpg`, Buffer.from(buffer), { 
+    access: 'public', 
+    contentType: 'image/jpeg',
+    addRandomSuffix: true 
+  });
   return { base64, blobUrl: blob.url };
 }
 
