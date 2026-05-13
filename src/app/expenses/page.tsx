@@ -18,6 +18,7 @@ interface FinRecord {
   receipt_number?: string;
   photo_url?: string;
   comment?: string;
+  created_at?: string;
 }
 
 const CATEGORIES: Record<string, { name: string; color: string }> = {
@@ -387,8 +388,12 @@ export default function ExpensesPage() {
           });
           standalone.forEach(r => groups.push({ receiptId: null, items: [r] }));
 
-          // Сортируем по дате
-          groups.sort((a, b) => new Date(b.items[0].date).getTime() - new Date(a.items[0].date).getTime());
+          // Сортируем по дате, затем по дате добавления (последнее добавление сверху)
+          groups.sort((a, b) => {
+            const dateDiff = new Date(b.items[0].date).getTime() - new Date(a.items[0].date).getTime();
+            if (dateDiff !== 0) return dateDiff;
+            return new Date(b.items[0].created_at || 0).getTime() - new Date(a.items[0].created_at || 0).getTime();
+          });
 
           return groups.map((group, gi) => {
             // Чек с несколькими позициями — свёрнутый

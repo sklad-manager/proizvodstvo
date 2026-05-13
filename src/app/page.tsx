@@ -140,6 +140,17 @@ export default function Home() {
       href: '/expenses' 
     },
     { 
+      name: 'История действий', 
+      description: 'Последние 100 изменений в финансах и сырье', 
+      icon: 'ni-time-alarm', 
+      gradient: 'bg-gradient-to-br from-slate-600 to-slate-400',
+      shadow: 'shadow-slate-500/40',
+      hoverBg: 'hover:bg-slate-50/50',
+      textColor: 'group-hover:text-slate-600',
+      line: 'bg-gradient-to-r from-slate-600 to-slate-400',
+      href: '/history' 
+    },
+    { 
       name: 'Финансовый отчет', 
       description: 'Аналитика, себестоимость и общие итоги', 
       icon: 'ni-money-coins', 

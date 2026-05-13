@@ -97,6 +97,69 @@ export async function GET() {
       )
     `;
 
+    // 7. История действий
+    await client.sql`
+      CREATE TABLE IF NOT EXISTS action_history (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        action_type TEXT NOT NULL,
+        module TEXT NOT NULL,
+        description TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    // Создаем функцию для логирования расходов/доходов
+    await client.sql`
+      CREATE OR REPLACE FUNCTION log_expense_history() RETURNS TRIGGER AS $$
+      BEGIN
+        IF TG_OP = 'INSERT' THEN
+          INSERT INTO action_history (action_type, module, description) 
+          VALUES ('add', 'finance', (CASE WHEN NEW.type = 'income' THEN 'Приход: ' ELSE 'Расход: ' END) || NEW.description || ' (' || NEW.amount || ' грн)');
+          RETURN NEW;
+        ELSIF TG_OP = 'DELETE' THEN
+          INSERT INTO action_history (action_type, module, description) 
+          VALUES ('delete', 'finance', (CASE WHEN OLD.type = 'income' THEN 'Приход: ' ELSE 'Расход: ' END) || OLD.description || ' (' || OLD.amount || ' грн)');
+          RETURN OLD;
+        END IF;
+        RETURN NULL;
+      END;
+      $$ LANGUAGE plpgsql;
+    `;
+
+    // Привязываем триггер к таблице expenses
+    await client.sql`DROP TRIGGER IF EXISTS expense_history_trigger ON expenses`;
+    await client.sql`
+      CREATE TRIGGER expense_history_trigger
+      AFTER INSERT OR DELETE ON expenses
+      FOR EACH ROW EXECUTE FUNCTION log_expense_history()
+    `;
+
+    // Создаем функцию для логирования сырья
+    await client.sql`
+      CREATE OR REPLACE FUNCTION log_raw_material_history() RETURNS TRIGGER AS $$
+      BEGIN
+        IF TG_OP = 'INSERT' THEN
+          INSERT INTO action_history (action_type, module, description) 
+          VALUES ('add', 'raw_materials', 'Добавлен тюк #' || NEW.number || ' (' || NEW.weight || ' кг)');
+          RETURN NEW;
+        ELSIF TG_OP = 'DELETE' THEN
+          INSERT INTO action_history (action_type, module, description) 
+          VALUES ('delete', 'raw_materials', 'Удален тюк #' || OLD.number || ' (' || OLD.weight || ' кг)');
+          RETURN OLD;
+        END IF;
+        RETURN NULL;
+      END;
+      $$ LANGUAGE plpgsql;
+    `;
+
+    // Привязываем триггер к таблице raw_materials_bales
+    await client.sql`DROP TRIGGER IF EXISTS raw_material_history_trigger ON raw_materials_bales`;
+    await client.sql`
+      CREATE TRIGGER raw_material_history_trigger
+      AFTER INSERT OR DELETE ON raw_materials_bales
+      FOR EACH ROW EXECUTE FUNCTION log_raw_material_history()
+    `;
+
     await client.sql`COMMIT`;
     return NextResponse.json({ success: true, message: "БД готова (Склад, График, ТО, Финансы, Чеки)" }, { status: 200 });
   } catch (error: any) {
