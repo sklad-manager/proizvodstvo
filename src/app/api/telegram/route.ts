@@ -4,19 +4,19 @@ import { NextResponse } from 'next/server';
 
 const GEMINI_KEY = process.env.GOOGLE_AI_KEY;
 
-// Генерация номера чека: ЧЕК-2026-05-12-NNN
 async function generateReceiptNumber(client: any, manualNum?: number): Promise<string> {
   const now = new Date();
-  const y = now.getFullYear();
+  const y = now.getFullYear().toString().slice(-2);
   const m = (now.getMonth() + 1).toString().padStart(2, '0');
   const d = now.getDate().toString().padStart(2, '0');
 
+  const datePrefix = `${d}${m}${y}`;
+
   if (manualNum) {
-    return `ЧЕК-${y}-${m}-${d}-${manualNum.toString().padStart(3, '0')}`;
+    return `${datePrefix}-${manualNum}`;
   }
 
-  // Берём максимальный номер за месяц, чтобы не было коллизий
-  const prefix = `ЧЕК-${y}-${m}`;
+  const prefix = `${datePrefix}-`;
   const result = await client.sql`SELECT receipt_number FROM receipts WHERE receipt_number LIKE ${prefix + '%'} ORDER BY receipt_number DESC LIMIT 1`;
   let seq = 1;
   if (result.rows.length > 0) {
@@ -24,7 +24,7 @@ async function generateReceiptNumber(client: any, manualNum?: number): Promise<s
     const lastNum = parseInt(last.split('-').pop() || '0');
     seq = lastNum + 1;
   }
-  return `ЧЕК-${y}-${m}-${d}-${seq.toString().padStart(3, '0')}`;
+  return `${datePrefix}-${seq}`;
 }
 
 // Проверка существования номера чека

@@ -111,6 +111,19 @@ export async function PATCH(request: Request) {
   }
 }
 
+// Отправка уведомления в Telegram
+async function sendTgNotification(text: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+    });
+  } catch (e) {}
+}
+
 export async function DELETE(request: Request) {
   const client = await db.connect();
   try {
@@ -119,8 +132,22 @@ export async function DELETE(request: Request) {
     const type = searchParams.get('type');
 
     if (type === 'category') {
+      const cat = await client.sql`SELECT name FROM raw_materials_categories WHERE id = ${id}`;
+      if (cat.rows.length > 0) {
+        await sendTgNotification(`🗑 <b>Удалена категория сырья:</b>\n${cat.rows[0].name}`);
+      }
       await client.sql`DELETE FROM raw_materials_categories WHERE id = ${id}`;
     } else {
+      const bale = await client.sql`
+        SELECT b.*, c.name as cat_name 
+        FROM raw_materials_bales b 
+        LEFT JOIN raw_materials_categories c ON b.category_id = c.id 
+        WHERE b.id = ${id}
+      `;
+      if (bale.rows.length > 0) {
+        const b = bale.rows[0];
+        await sendTgNotification(`🗑 <b>Удален рулон/сырье:</b>\nКатегория: ${b.cat_name || 'Без категории'}\nЦвет: ${b.color || '-'}\nВес: ${b.weight} кг`);
+      }
       await client.sql`DELETE FROM raw_materials_bales WHERE id = ${id}`;
     }
 

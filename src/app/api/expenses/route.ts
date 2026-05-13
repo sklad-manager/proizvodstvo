@@ -88,12 +88,34 @@ export async function PATCH(request: Request) {
   }
 }
 
+// Отправка уведомления в Telegram
+async function sendTgNotification(text: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+    });
+  } catch (e) {}
+}
+
 // Удалить запись
 export async function DELETE(request: Request) {
   const client = await db.connect();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+
+    // Получаем информацию перед удалением для уведомления
+    const item = await client.sql`SELECT * FROM expenses WHERE id = ${id}`;
+    if (item.rows.length > 0) {
+      const row = item.rows[0];
+      const desc = row.description || 'Без описания';
+      const amount = row.amount || 0;
+      await sendTgNotification(`🗑 <b>Удалена операция:</b>\n${desc}\nСумма: ${amount} грн.`);
+    }
 
     await client.sql`DELETE FROM expenses WHERE id = ${id}`;
 
