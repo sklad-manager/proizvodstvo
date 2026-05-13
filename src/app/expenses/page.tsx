@@ -34,15 +34,9 @@ const CATEGORIES: Record<string, { name: string; color: string }> = {
 export default function ExpensesPage() {
   const [records, setRecords] = useState<FinRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [formType, setFormType] = useState<'expense' | 'income'>('expense');
-  const [newAmount, setNewAmount] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newCat, setNewCat] = useState('small');
-  const [newPay, setNewPay] = useState('Ф1');
-  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterType, setFilterType] = useState<'all' | 'expense' | 'income'>('all');
-  const [filterPay, setFilterPay] = useState('all');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [expandedReceipts, setExpandedReceipts] = useState<Set<string>>(new Set());
@@ -92,15 +86,7 @@ export default function ExpensesPage() {
 
   useEffect(() => { loadData(); const i = setInterval(loadData, 10000); return () => clearInterval(i); }, []);
 
-  const addRecord = async () => {
-    if (!newAmount || !newDesc) return;
-    await fetch('/api/expenses', { method: 'POST', body: JSON.stringify({
-      id: Date.now().toString(), category: newCat, description: newDesc,
-      amount: parseFloat(newAmount), date: newDate, status: 'paid',
-      paymentMethod: newPay, type: formType, isConfirmed: true
-    })});
-    setNewAmount(''); setNewDesc(''); setShowForm(false); loadData();
-  };
+
 
   const confirmRecord = async (id: string) => {
     await fetch('/api/expenses', { method: 'PATCH', body: JSON.stringify({ id, isConfirmed: true }) });
@@ -162,13 +148,15 @@ export default function ExpensesPage() {
 
   const filtered = confirmed.filter(r => {
     if (filterType !== 'all' && r.type !== filterType) return false;
-    if (filterPay !== 'all' && r.payment_method !== filterPay) return false;
-    if (selectedDate && r.date?.split('T')[0] !== selectedDate) return false;
+    const d = r.date?.split('T')[0];
+    if (filterStartDate && d < filterStartDate) return false;
+    if (filterEndDate && d > filterEndDate) return false;
+    if (!filterStartDate && !filterEndDate && selectedDate && d !== selectedDate) return false;
     return true;
   });
 
-  // Итоги — по выбранной дате или по всем
-  const scopeRecords = selectedDate ? confirmed.filter(r => r.date?.split('T')[0] === selectedDate) : confirmed;
+  // Итоги — по выбранной дате или интервалу
+  const scopeRecords = (!filterStartDate && !filterEndDate && selectedDate) ? confirmed.filter(r => r.date?.split('T')[0] === selectedDate) : filtered;
   const totalIncome = scopeRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
   const totalExpense = scopeRecords.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
   const balance = totalIncome - totalExpense;
@@ -207,19 +195,22 @@ export default function ExpensesPage() {
         year={calYear} month={calMonth}
         selectedDate={selectedDate}
         dayTotals={dayTotals}
-        onSelectDate={(d) => { setSelectedDate(d); if (d) setNewDate(d); }}
+        onSelectDate={(d) => { setSelectedDate(d); setFilterStartDate(''); setFilterEndDate(''); }}
         onChangeMonth={changeMonth}
       />
 
       {/* Финансовый пульс */}
-      {selectedDate && (
-        <div className="px-3 py-2 bg-slate-800 text-white rounded-2xl text-center text-xs font-black uppercase tracking-widest">
-          📅 {new Date(selectedDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', weekday: 'short' })}
+      {(selectedDate || filterStartDate || filterEndDate) && (
+        <div className="px-3 py-2 bg-slate-800 text-white rounded-2xl text-center text-[10px] md:text-xs font-black uppercase tracking-widest">
+          📅 {selectedDate 
+                ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', weekday: 'short' }) 
+                : `${filterStartDate ? new Date(filterStartDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '...'} — ${filterEndDate ? new Date(filterEndDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '...'}`
+             }
         </div>
       )}
       <div className="grid grid-cols-3 gap-3 md:gap-6">
         <div className="bg-white p-5 md:p-8 rounded-[2rem] shadow-xl border border-gray-50 relative overflow-hidden">
-          <div className="text-[9px] md:text-[10px] font-black uppercase text-emerald-400 tracking-widest mb-1 md:mb-2">{selectedDate ? 'Приход' : 'Доходы'}</div>
+          <div className="text-[9px] md:text-[10px] font-black uppercase text-emerald-400 tracking-widest mb-1 md:mb-2">{(selectedDate || filterStartDate || filterEndDate) ? 'Приход' : 'Доходы'}</div>
           <div className="text-lg md:text-3xl font-black text-emerald-500">+{totalIncome.toLocaleString()}</div>
           <div className="text-[10px] md:text-xs font-bold text-slate-300 mt-1">грн</div>
           <div className="absolute bottom-0 left-0 h-1 bg-emerald-500 w-full"></div>
@@ -303,11 +294,22 @@ export default function ExpensesPage() {
 
 
       {/* Фильтры */}
-      <div className="flex flex-wrap gap-2 px-1">
-        {[{ key: 'all', label: 'Все' }, { key: 'income', label: '💰 Доходы' }, { key: 'expense', label: '📉 Расходы' }].map(f => (
-          <button key={f.key} onClick={() => setFilterType(f.key as any)}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${filterType === f.key ? 'bg-slate-800 text-white' : 'bg-white text-slate-400 border border-gray-100'}`}>{f.label}</button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        <div className="flex gap-2 mr-2">
+          {[{ key: 'all', label: 'Все' }, { key: 'income', label: '💰 Доходы' }, { key: 'expense', label: '📉 Расходы' }].map(f => (
+            <button key={f.key} onClick={() => setFilterType(f.key as any)}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${filterType === f.key ? 'bg-slate-800 text-white' : 'bg-white text-slate-400 border border-gray-100'}`}>{f.label}</button>
+          ))}
+        </div>
+        <div className="hidden md:block w-px h-6 bg-gray-200"></div>
+        <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-100 p-1">
+          <input type="date" value={filterStartDate} onChange={e => { setFilterStartDate(e.target.value); setSelectedDate(null); }} className="px-2 py-1 bg-transparent text-xs font-bold text-slate-600 outline-none w-[110px]" />
+          <span className="text-slate-300 text-xs font-black">—</span>
+          <input type="date" value={filterEndDate} onChange={e => { setFilterEndDate(e.target.value); setSelectedDate(null); }} className="px-2 py-1 bg-transparent text-xs font-bold text-slate-600 outline-none w-[110px]" />
+          {(filterStartDate || filterEndDate) && (
+            <button onClick={() => { setFilterStartDate(''); setFilterEndDate(''); }} className="px-2 py-1 text-xs text-rose-400 font-black hover:bg-rose-50 rounded-lg transition-all">✕</button>
+          )}
+        </div>
       </div>
 
       {/* Таблица операций */}
